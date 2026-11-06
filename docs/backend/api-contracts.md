@@ -1,6 +1,6 @@
 # Wire contracts, errors and HTTP policy
 
-Canonical machine-readable file: openapi.yaml. It contains 50 operations across 40 paths, public and admin, reusable schemas and concrete booking examples. HTTP handler method is operationId; mapping to Go service and tables is documented in api-mapping.md.
+Canonical machine-readable file: openapi.yaml. It contains 51 operations across 41 paths, public and admin, reusable schemas and concrete booking examples. HTTP handler method is operationId; mapping to Go service and tables is documented in api-mapping.md.
 
 ## Protocol
 

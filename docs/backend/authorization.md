@@ -11,3 +11,5 @@ Protect PII: TLS, database least-privileged role, encrypted backups, no personal
 Availability/rate: per-IP and abuse-pattern throttling for POST booking, body size cap, request timeout, phone normalization server-side, verify origin and human-input controls if abuse appears. Limit concurrent DB connections, lock timeout, statement timeout, bounded pagination/date ranges. Do not leak resource schedule drafts or client histories through public routes.
 
 Backups: daily encrypted snapshot plus PITR if operational RPO/RTO require it, periodic restore drill and restricted access. Application-level full import/reset/clear routes are intentionally excluded from production.
+
+Client candidate matching by phone and booking-to-client assignment are administrative operations only. Never publish a client directory to the public visitor. Administrators must explicitly select the actual client profile; automatic phone-based identity matching is forbidden, even when the lookup returns a single candidate. Shared phones are normal; no separate contact-person entity is created.

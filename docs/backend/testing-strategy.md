@@ -5,3 +5,5 @@ Canonical detailed Go tests: go-testing.md. The minimum release gate is: (1) Go 
 Evidence for correctness: after N concurrent create attempts for same occupied interval, count distinct successful booking IDs is 1; no two rows matching the exclusion predicate overlap; a cancelled booking frees capacity; same idempotency request never creates a second booking; publication with a stale revision leaves both published and draft states untouched.
 
 A test run without PostgreSQL is insufficient for release because mutex-based fakes do not enforce GiST exclusion or transaction ordering.
+
+Shared-phone acceptance is mandatory: duplicate normalized client phones are legal, public pending bookings have client_id=NULL, administrative lookup returns all candidates, and explicit audited association is required before confirmation. See go-testing.md.
