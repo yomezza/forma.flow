@@ -1,25 +1,117 @@
-# FORMA TELA — Backend Architecture (Go + PostgreSQL)
+# FORMA TELA — руководство по backend-документации
 
-Architecture documentation only; not an implemented backend. Based on the actual frontend branch, commit 1bdc8c63eb0db12445e4a6dc0bf717967df0d9cf (2026-11-06).
+**Стек:** Go + PostgreSQL. **Архитектура:** модульный монолит.  
+**Назначение этой папки:** передать Go-разработчику принятые решения по бизнес-логике, данным, API, безопасности, транзакциям и тестам. Это **проект архитектуры, а не готовый backend**.
 
-## Reading order
-1. [Actual frontend assessment](investigation.md), [verified cross-branch source links](frontend-source-links.md) and [all 57 DemoAPI methods](api-mapping.md).
-2. [Go architecture](go-architecture.md), [dependencies](go-dependencies.md), [domain models](go-domain-models.md), [service contracts](go-service-contracts.md).
-3. [Business rules](business-rules.md), [schedule engine](scheduling-engine.md), [booking lifecycle](booking-lifecycle.md).
-4. [Data model](data-model.md), [PostgreSQL DDL](database-schema.sql), [ER diagram](er-diagram.md), [database operations](database-operations.md), [indexes](database-indexes.md).
-5. [OpenAPI 3.1](openapi.yaml), [frontend integration](frontend-integration.md).
-6. [Auth/security](authorization.md), [migrations](migrations.md), [implementation guide](go-implementation-guide.md), [tests](go-testing.md), [decisions](decisions.md).
+> **Начните с этого README и читайте документы по номерам ниже.** Не начинайте реализацию с SQL-схемы или OpenAPI в отрыве от бизнес-правил: это может привести к несовместимым контрактам и неверной логике записей.
 
-Frontend: frontend branch and JavaScript DemoAPI; backend developer: main and Go implementation; architecture author: backend-architecture only. No merges authorized.
+## Маршрут изучения — 25 документов в порядке чтения
 
-## Invariants
-- Public slots derive from active mode and published schedules only.
-- pending_confirmation immediately reserves time; changing a schedule never deletes bookings.
-- PostgreSQL EXCLUDE/GiST plus transactions, not Go process mutex, prevent double bookings.
-- Cabinet-local dates and IANA zone are distinct from stored UTC instants.
-- Administrative data requires server authentication and authorization.
-- Destructive DemoAPI functions are NOT production HTTP endpoints.
+### Этап 1. Разобраться, что уже существует во frontend
 
-Source of truth for current UI: [DemoAPI implementation](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L1-L345), [frontend API documentation](https://github.com/yomezza/forma.flow/blob/frontend/docs/DEMO_API.md#L1-L108), and [cross-branch source reference index](frontend-source-links.md). The source index records the frontend commit checked; branch links intentionally track the moving `frontend` branch.
+**Задача этапа:** отличить действующее поведение DemoAPI от того, что только запланировано для Go. Исходники живут в другой ветке — ссылки уже подготовлены.
 
-Approved client identity rule: several clients (including relatives) may share one phone. Phone is never an automatic identifier. Public requests begin without client_id; administrator links an existing or new client before confirmation. No separate contact-person entity; see business-rules.md and frontend-integration.md.
+| № | Документ | Что необходимо понять |
+|---|---|---|
+| 01 | [investigation.md](investigation.md) | Результаты проверки существующего frontend, выявленные ограничения DemoAPI и согласованные отличия production-версии. |
+| 02 | [frontend-source-links.md](frontend-source-links.md) | Ссылки из этой ветки на конкретные файлы и строки в ветке frontend; как проверить исходники и закреплённый коммит. |
+| 03 | [api-mapping.md](api-mapping.md) | Все 57 методов DemoAPI: какой REST-маршрут, Go-handler, сервис и операция PostgreSQL им соответствуют; какие демо-методы нельзя переносить в production. |
+
+**После этапа:** вы понимаете путь **JavaScript DemoAPI → REST → Go → PostgreSQL** и не принимаете текущие ограничения браузерного демо за требования к серверу.
+
+### Этап 2. Изучить бизнес-правила до написания кода
+
+**Задача этапа:** зафиксировать инварианты, по которым будут работать все обработчики, транзакции и тесты.
+
+| № | Документ | Что необходимо понять |
+|---|---|---|
+| 04 | [business-rules.md](business-rules.md) | Услуги, клиенты, заявки, режимы расписания, публикация, отпуска, сохранение истории. |
+| 05 | [booking-lifecycle.md](booking-lifecycle.md) | Статусы заявки, допустимые переходы, отмена, восстановление и подтверждение администратором. |
+| 06 | [scheduling-engine.md](scheduling-engine.md) | Как вычислять слоты с учётом часового пояса кабинета, длительности, перерыва, отпусков, опубликованных правил и других записей. |
+| 07 | [decisions.md](decisions.md) | Принятые архитектурные решения (ADR), причины выбора и отклонённые варианты; особенно правило нескольких клиентов с одним телефоном. |
+
+**После этапа:** можно перечислить инварианты записи и расписания и объяснить их без ссылок на реализацию интерфейса.
+
+### Этап 3. Понять устройство Go-приложения
+
+**Задача этапа:** определить границы пакетов и сервисных операций, прежде чем писать обработчики и запросы.
+
+| № | Документ | Что необходимо понять |
+|---|---|---|
+| 08 | [go-architecture.md](go-architecture.md) | Структура cmd/internal, ответственность пакетов, направление зависимостей, транзакционные границы. |
+| 09 | [go-dependencies.md](go-dependencies.md) | Почему выбраны net/http, pgx, goose и стандартная библиотека, а другие зависимости не обязательны. |
+| 10 | [go-domain-models.md](go-domain-models.md) | Типизированные структуры Go, идентификаторы, время, деньги, nullable-связь заявки с клиентом. |
+| 11 | [go-service-contracts.md](go-service-contracts.md) | Входы и выходы бизнес-сервисов, context.Context, ошибки и граница между HTTP и бизнес-логикой. |
+
+**После этапа:** понятны будущие пакеты, публичные методы сервисов и правила, которые нельзя помещать в HTTP-handler.
+
+### Этап 4. Разобраться с PostgreSQL и целостностью данных
+
+**Задача этапа:** спроектировать хранение и транзакции по уже изученным доменным правилам.
+
+| № | Документ | Что необходимо понять |
+|---|---|---|
+| 12 | [data-model.md](data-model.md) | Назначение таблиц, связи и ограничения; телефон не уникален, а клиент определяется внутренним ID. |
+| 13 | [er-diagram.md](er-diagram.md) | Визуальные связи ресурсов, услуг, клиентов, заявок, расписания и событий. |
+| 14 | [database-schema.sql](database-schema.sql) | Справочный DDL PostgreSQL: таблицы, типы, CHECK/FK/EXCLUDE-ограничения. Это исходник для миграций, а не подтверждённая работающая миграция. |
+| 15 | [database-indexes.md](database-indexes.md) | Индексы и причины их выбора; поиск всех кандидатов по общему номеру телефона. |
+| 16 | [database-operations.md](database-operations.md) | Конкретные SQL-операции, атомарное создание заявки, идемпотентность, блокировки, привязка клиента и публикация расписания. |
+| 17 | [migrations.md](migrations.md) | Порядок создания и эволюции схемы через goose, правила применения и проверки миграций. |
+
+**После этапа:** понятно, за какие гарантии отвечает PostgreSQL и почему проверка свободного времени в Go сама по себе не защищает от двойного бронирования.
+
+### Этап 5. Изучить внешний контракт и безопасность
+
+**Задача этапа:** согласовать реальные HTTP-вызовы, ответы и административные права с уже утверждённой моделью.
+
+| № | Документ | Что необходимо понять |
+|---|---|---|
+| 18 | [api-contracts.md](api-contracts.md) | Форматы запросов/ответов, HTTP-коды, единая ошибка, пагинация, идемпотентность и версии расписания. |
+| 19 | [openapi.yaml](openapi.yaml) | Формальная спецификация OpenAPI 3.1; источник контрактов при реализации Go handlers и HTTP-адаптера. |
+| 20 | [authorization.md](authorization.md) | Сессии администратора, роли, CSRF, защита персональных данных, аудит и ограничения публичного API. |
+| 21 | [frontend-integration.md](frontend-integration.md) | Какие изменения потребуются в HttpSiteAPI и админке frontend; где контракт Go намеренно отличается от DemoAPI. |
+
+**После этапа:** можно реализовывать и проверять HTTP endpoints, понимая требования к доступу, статусам и совместимости frontend.
+
+### Этап 6. Реализовывать по этапам и проверять результат
+
+**Задача этапа:** перейти от документации к работе в отдельной ветке backend-разработки, не перепроектируя систему по ходу.
+
+| № | Документ | Что необходимо понять |
+|---|---|---|
+| 22 | [implementation-roadmap.md](implementation-roadmap.md) | Краткая общая последовательность работ и границы MVP. |
+| 23 | [go-implementation-guide.md](go-implementation-guide.md) | Подробные фазы 0–8, что реализовать на каждой и по каким критериям принимать результат. **Основной рабочий план разработчика.** |
+| 24 | [testing-strategy.md](testing-strategy.md) | Минимальные уровни проверки, которые обязательно должны пройти до выпуска. |
+| 25 | [go-testing.md](go-testing.md) | Конкретные табличные, интеграционные, HTTP-, миграционные и конкурентные тесты Go/PostgreSQL. **Основной чек-лист качества.** |
+
+**После этапа:** работа ведётся небольшими проверяемыми фазами, где тесты на конкурентное бронирование и целостность данных обязательны, а не отложены до конца проекта.
+
+## Как пользоваться документами во время разработки
+
+1. **Новая задача:** найдите функцию в [api-mapping.md](api-mapping.md) и откройте её текущий frontend-исходник по ссылке. Если код отличается от целевой архитектуры, ориентируйтесь на согласованное правило из [business-rules.md](business-rules.md) и [decisions.md](decisions.md), а расхождение учитывайте в интеграции.
+2. **Новый endpoint:** сопоставьте [OpenAPI](openapi.yaml), [контракт сервиса](go-service-contracts.md), [операции БД](database-operations.md) и [правила доступа](authorization.md). Не придумывайте отдельный контракт без обновления документации.
+3. **Изменение таблиц или расписания:** сверяйтесь с [моделью данных](data-model.md), [SQL](database-schema.sql), [движком слотов](scheduling-engine.md), [миграциями](migrations.md) и соответствующими [тестами](go-testing.md).
+4. **Завершение этапа:** используйте критерии из [go-implementation-guide.md](go-implementation-guide.md) и тест-кейсы из [go-testing.md](go-testing.md). Не считайте успешную компиляцию достаточной проверкой.
+
+## Решения, которые нельзя потерять при реализации
+
+- **Один номер телефона может быть у нескольких клиентов.** Не делайте UNIQUE по телефону и не назначайте карточку по первому совпадению. Публичная заявка создаётся без привязки к профилю; администратор явно выбирает или создаёт клиента перед подтверждением. Отдельной сущности контактного лица нет.
+- **Новая заявка занимает слот сразу** в статусе pending_confirmation. Подтверждение, отмена, завершение и восстановление выполняются только по правилам жизненного цикла.
+- **Повторное бронирование того же времени запрещает PostgreSQL**, включая несколько экземпляров Go-сервера; одного mutex или предварительной проверки слотов недостаточно.
+- **Расписание посетителя — опубликованное.** Черновики не влияют на запись. Публикация и переключение режимов используют ревизии, а существующие бронирования не удаляются из-за изменения графика.
+- **Время принадлежит кабинету:** локальные календарные даты и IANA time zone ресурса отделены от UTC timestamp в БД.
+- **Демо-админка не является серверной авторизацией.** Массовое удаление, импорт и сброс DemoAPI не превращаются автоматически в production API.
+
+## Ветки и источник истины
+
+| Ветка | Назначение |
+|---|---|
+| [backend-architecture](https://github.com/yomezza/forma.flow/tree/backend-architecture/docs/backend) | Архитектура, SQL, API и эта документация. |
+| [frontend](https://github.com/yomezza/forma.flow/tree/frontend) | Реальный статический интерфейс и JavaScript DemoAPI; исходный код для ссылок и проверки текущего поведения. |
+| [main](https://github.com/yomezza/forma.flow/tree/main) | Ветка, отведённая для реализации backend на Go. |
+
+Документы исследовали frontend на коммите [1bdc8c63](https://github.com/yomezza/forma.flow/commit/1bdc8c63eb0db12445e4a6dc0bf717967df0d9cf). Ссылки на ветку frontend могут меняться вместе с её кодом; для воспроизводимого сравнения используйте закреплённый SHA, указанный в [frontend-source-links.md](frontend-source-links.md). Смена или слияние веток без отдельного согласования не предполагается.
+
+**Перед реальным запуском:** уточнить фактический IANA часовой пояс кабинета, политику неоднозначных минут при DST, применение отпусков в advanced-режиме, хранение/удаление персональных данных и доступ к экспорту. Эти пункты описаны как открытые решения, а не как реализованные возможности.
+
+**Статус материалов:** документы описывают целевую архитектуру; они не означают, что Go-сервис реализован, миграции PostgreSQL запущены или интеграционные тесты уже пройдены.
