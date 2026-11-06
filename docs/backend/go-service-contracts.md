@@ -1,92 +1,87 @@
-# Go service contract examples
+# Go: сервисные контракты
 
-These are target signatures and boundaries, not a partial backend implementation.
+Сигнатуры — проект, не компилируемый код backend. HTTP handlers используют `context.Context` и не принимают бизнес-решения самостоятельно.
 
 ~~~go
 package booking
 import "context"
-type CreateRequest struct {
-    ResourceID, ServiceID, Date, Time string
-    FullName, PhoneNormalized, IdempotencyKey string
-}
-type BookingReceipt struct {
-    ID, Status, ServiceID, Date, Time, Name, Currency string
-    DurationMinutes int
-    PriceAmount int64
-}
-type Service struct { /* postgres repository + schedule engine + clock */ }
-func (s *Service) CreateRequest(ctx context.Context, req CreateRequest) (BookingReceipt,error) { panic("signature only") }
-type AssignClientCommand struct { BookingID, AdminID string; ClientID *string; NewClient *CreateClientData }
-type CreateClientData struct { FullName, PhoneNormalized string }
-func (s *Service) AssignClient(ctx context.Context, cmd AssignClientCommand) error { panic("signature only") }
-func (s *Service) Confirm(ctx context.Context, bookingID, adminID string) error { panic("signature only") }
-func (s *Service) Restore(ctx context.Context, bookingID, adminID string) error { panic("signature only") }
-~~~
 
-~~~go
-package schedule
-import "context"
-type AvailableQuery struct { ResourceID, ServiceID, Date string }
-type Publication struct {
-    ResourceID, From, To, ActorID string
-    ExpectedRevision int64
+type CreateRequest struct {
+    StudioID, ServiceID, Date, Time string
+    FullName, Phone, ConsentVersion, IdempotencyKey string
+}
+type AssignClient struct { BookingID, ActorID string; ExistingClientID *string; NewClient *ClientInput }
+type ClientInput struct { FullName, Phone string }
+type AssignSpecialist struct {
+    BookingID, SpecialistID, ActorAccountID string
+    RoomID *string // nil means auto-select a compatible room
+    ExpectedCapacityRevision int64
     AcknowledgedBookingIDs []string
 }
-type Service struct {}
-func (s *Service) AvailableSlots(ctx context.Context, q AvailableQuery) ([]string,error) { panic("signature only") }
-func (s *Service) Publish(ctx context.Context, cmd Publication) (int64,error) { panic("signature only") }
+type AssignmentPreview struct {
+    Allowed, RequiresConfirmation bool
+    CapacityRevision int64
+    SpecialistID, RoomID, Reason string
+    AffectedBookingIDs []string
+}
+type Service struct { /* pgx unit of work, schedule provider, solver, clock */ }
+func (s *Service) CreateRequest(ctx context.Context, in CreateRequest) (Receipt,error) { panic("signature only") }
+func (s *Service) PreviewAssignment(ctx context.Context, cmd AssignSpecialist) (AssignmentPreview,error) { panic("signature only") }
+func (s *Service) AssignSpecialist(ctx context.Context, cmd AssignSpecialist) (Receipt,error) { panic("signature only") }
+func (s *Service) LinkClient(ctx context.Context, cmd AssignClient) error { panic("signature only") }
+func (s *Service) Confirm(ctx context.Context, id, actorID string) error { panic("signature only") }
+func (s *Service) Cancel(ctx context.Context, id, actorID, note string) error { panic("signature only") }
+func (s *Service) Restore(ctx context.Context, id, actorID string) error { panic("signature only") }
+func (s *Service) CompleteMyBooking(ctx context.Context, id, specialistID string) error { panic("signature only") }
+func (s *Service) UndoMyCompletion(ctx context.Context, id, specialistID, note string) error { panic("signature only") }
 ~~~
 
-| HTTP handler | Go service method | PostgreSQL operation |
-|---|---|---|
-| PublicCreateBooking | booking.CreateRequest | one transaction incl idempotency and unlinked booking (client_id NULL); no automatic client creation; EXCLUDE |
-| PublicListSlots | schedule.AvailableSlots | snapshot of published rules and occupied spans |
-| AdminConfirm/Cancel/Complete | booking.Transition | locked booking, update and event/audit |
-| AdminRestore | booking.Restore | locked booking and schedule, exclusion re-check |
-| AdminPublishSchedule | schedule.Publish | locked revision, replace selected days, change and audit |
-| AdminSetMode | schedule.SetMode | locked revision, change snapshot |
-| AdminUpdateClient | client.Update | validate name/phone, duplicate phone permitted, audit |
-| AdminUpdateService | catalog.Update | price/duration validation and audit |
-
-Inject clock as minimal interface or function returning time.Time and a small store/transaction boundary. Interfaces belong at the consuming service where needed. All I/O methods accept context.Context first. Domain errors should never expose SQL stack traces; transport maps them to HTTP codes and a stable error envelope.
-
-AssignClient validates exactly one of ClientID or NewClient, locks booking, selects or creates client, associates and audits in one transaction. Confirm rejects unlinked requests with CLIENT_LINK_REQUIRED 409. client.ListByPhone(ctx,phone) returns []Client, never a singular guessed match. The public CreateRequest does not create a client.
-
-## Идея 01: новые Go service contracts
-
 ~~~go
-package booking
-import "context"
-type AssignmentCommand struct {
-  BookingID, SpecialistID, ActorAccountID string
-  RoomID *string // nil => choose available room
-  ExpectedCapacityRevision int64
-  AcknowledgedBookingIDs []string
-}
-type AssignmentPreview struct {
-  Allowed, RequiresConfirmation bool
-  SpecialistID, RoomID string
-  CapacityRevision int64
-  AffectedBookingIDs []string
-  Reason string
-}
-func (s *Service) PreviewAssignment(ctx context.Context, cmd AssignmentCommand) (AssignmentPreview,error) { panic("contract only") }
-func (s *Service) Assign(ctx context.Context, cmd AssignmentCommand) (AssignmentPreview,error) { panic("contract only") }
-func (s *Service) MarkCompleted(ctx context.Context, id, specialistActorID string) error { panic("contract only") }
-func (s *Service) UndoCompletion(ctx context.Context, id, specialistActorID, reason string) error { panic("contract only") }
+package assignment
+import ("context"; "time")
+type Allocation struct { SpecialistID, RoomID string }
+type Job struct { ID, ServiceID string; StartsAt, BlockedUntil time.Time; Fixed *Allocation }
+type Result struct { SAT, Unknown bool; Witness map[string]Allocation; Reason string }
+func Solve(ctx context.Context, jobs []Job, domains map[string][]Allocation, limit int) (Result,error) { panic("signature only") }
 ~~~
 
 ~~~go
 package absence
 import "context"
-type Decision struct { ID, ActorAccountID string; ExpectedCapacityRevision int64; AcknowledgedBookingIDs []string; RejectionReason string }
-func (s *Service) SubmitOwn(ctx context.Context, accountID string, request any) error { panic("contract only") }
-func (s *Service) Review(ctx context.Context, d Decision, approve bool) error { panic("contract only") }
+type Command struct {
+    RequestID, ActorAccountID string
+    ExpectedCapacityRevision int64
+    AcknowledgedBookingIDs []string
+    RejectionReason string
+}
+type Service struct{}
+func (s *Service) SubmitMine(ctx context.Context, specialistID string, in RequestInput) (Request,error) { panic("signature only") }
+func (s *Service) WithdrawMine(ctx context.Context, specialistID, requestID string) error { panic("signature only") }
+func (s *Service) PreviewApproval(ctx context.Context, requestID string) (Preview,error) { panic("signature only") }
+func (s *Service) Approve(ctx context.Context, cmd Command) error { panic("signature only") }
+func (s *Service) Reject(ctx context.Context, cmd Command) error { panic("signature only") }
 ~~~
 
-Schedule.AvailableSlots now calls `assignment.Solve` across **all overlapping active bookings**, including unassigned. Repository reads are batch-based; preflight may run without lock, commit always takes `schedule_state FOR UPDATE`. Specialist service manages competence, hours and archive; room service manages active rooms; absence service owns pending/review/withdrawal; auth supports `account_roles` and staff-scoped DTO. All assignment and absence approvals recalculate candidate/warning set **inside** transaction. Specialist completion checks role, assignment identity, status and UTC ends_at; undo requires `completed_by_specialist_id` match. API handler mapping is in [api-mapping.md](api-mapping.md).
+Выше `Receipt`, `RequestInput`, `Request`, `Preview` — заполняемые доменные структуры, а **не** контракты JSON; точные JSON схемы — [openapi.yaml](openapi.yaml).
 
+## Handler → service → PostgreSQL
 
-## Идея 01: источник и приоритет
+| HTTP | Сервис | Операции |
+|---|---|---|
+| PublicCreateBooking | booking.CreateRequest | idempotency tx, studio schedule_state FOR UPDATE, capacity solver, bookings INSERT nullable assignment, events |
+| PublicListSlots/DateStates | schedule.AvailableSlots / DateStates | published studio + staff calendars/absences + rooms + bookings; pure solver |
+| AdminPreviewAssignment | booking.PreviewAssignment | read snapshot + global solver, no writes |
+| AdminAssignSpecialist | booking.AssignSpecialist | studio-lock, booking FOR UPDATE, direct GiST, witness/conflicts, assignment events, exceptions, audit |
+| AdminSetSpecialistServices/Week | specialist.UpdateServices/UpdateSchedule | studio-lock, staff rules update, warnings and revision |
+| AdminArchiveSpecialist | specialist.Archive | studio-lock, historical assignments preserved |
+| AdminUpdateRoom | room.Update | studio-lock, room state, warnings |
+| SpecialistSubmit/WithdrawAbsence | absence.SubmitMine / WithdrawMine | status events, no public availability change until approval |
+| AdminApprove/RejectAbsence | absence.Approve / Reject | studio-lock for approved, conflicts/acknowledgement, absence request UPDATE, audit |
+| SpecialistComplete/Undo | booking.CompleteMyBooking / UndoMyCompletion | authenticated own profile, booking lock, ends_at check, completion event + booking event |
+| AdminConfirm/Cancel/Restore | booking.Confirm/Cancel/Restore | linked-client validation, status transition, studio-lock for cancel/restore |
+| AdminPublishSchedule | schedule.Publish | studio-lock, schedule revision/ capacity revision, published days/history |
+| AdminLinkClient | booking.LinkClient | booking lock, explicit client select or insert, audit |
 
-Согласованные требования: [назначения и вместимость](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L15-L26), [личные графики и отсутствия](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L28-L34), [роли](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L36-L43), [завершение и аудит](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L45-L52). Текущий frontend не реализует эти правила; Go/PostgreSQL-проект в данном документе — целевое состояние.
+**Ошибки:** `VALIDATION` 422, `CLIENT_LINK_REQUIRED` 409, `SPECIALIST_INELIGIBLE` 409, `ROOM_UNAVAILABLE` 409, `GLOBAL_CAPACITY_CONFLICT` 409, `CAPACITY_UNRESOLVED` 409, `CAPACITY_CHECK_LIMIT` 503, `VERSION_CONFLICT` 409, `CONFLICT_ACK_REQUIRED` 409, `NOT_ENDED_YET` 409, `FORBIDDEN` 403, `SLOT_UNAVAILABLE` 409. SQLSTATE 23P01 → direct assignment conflict, not public personal disclosure.
+
+Интерфейсы определять в пакетах-потребителях (включая Clock), не создавать repository на каждый DTO. Use case atomicity — `storage/postgres` с транзакционным UnitOfWork, solver — чистый unit-testable пакет. [Транзакции](database-operations.md), [RBAC](authorization.md).

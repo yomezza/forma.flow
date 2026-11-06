@@ -1,36 +1,35 @@
-# Go implementation roadmap — bounded, testable tasks
+# Реализация Go-приложения по этапам
 
-Each task specifies tables, HTTP operations and a concrete acceptance test. Implement in main only. Architecture docs remain in backend-architecture until authorized merge.
+Основные требования [business-rules.md](business-rules.md) и [идея № 01](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L15-L52). Работы выполняются **backend-разработчиком в main**, это только документация в backend-architecture. Никакой отдельной архитектуры в `features`.
 
-## Phase 0 — baseline
-Create backend module as in go-architecture.md, go.mod pinned for Go 1.27, net/http, pgxpool, goose, slog. Add /healthz readiness check, config validation (DATABASE_URL, primary resource IANA zone), graceful shutdown. No bookings before timezone configured. CI gofmt, go vet, go test, dependency audit. Acceptance: start/stop locally, /healthz returns 200 only after database connectivity.
+## Фаза 0 — инфраструктура
+Go module, config, net/http, pgxpool, goose, slog, /healthz, graceful shutdown, IANA TZ студии, CI. Подготовить SQL migrations по актуальной [database-schema.sql](database-schema.sql), не по старому global EXCLUDE. Приёмка: поднимается на пустой PostgreSQL и корректно останавливается.
 
-## Phase 1 — persistence
-Split database-schema.sql into goose migrations and seed one resources row, schedule_state, simple_schedule, site_settings/site_content and initial catalog. Tables: all DDL; endpoints none yet. Acceptance: migrate up fresh PostgreSQL 16/18, check FK/EXCLUDE/unique constraints, repeat idempotently, test clean schema in integration.
+## Фаза 1 — БД, учётные записи, кабинеты и персонал
+Миграции resources/staff_accounts/account_roles/staff_sessions/services/clients/rooms/specialists/specialist_services/weekly/overrides/absence/bookings/events. Сеять одну студию, один кабинет и **одного специалиста только по явным данным**, без фальсификации исторических назначений. Проверить FK, nonunique phone, два EXCLUDE, nullable pair, audit. Приёмка: 2 специалиста могут иметь разные роли одного аккаунта, две комнаты допускаются.
 
-## Phase 2 — public content and catalog
-Build GET services/{id}, GET services, GET site/content and settings; catalog/site services. Tables: services, resources, site_settings, site_content. Acceptance: outputs match existing DemoAPI fields, including symbolic IDs and RUB integer price; inactive hidden on public list.
+## Фаза 2 — публичные справочники и авторизация
+Catalog/site GET, sessions, смена временного пароля при первом входе, отдельные role checks для admin и specialist, cookies/CSRF. Приёмка: незалогиненный не видит ни администратора, ни специалиста; специалист никогда не получает телефон клиента и неназначенные заявки.
 
-## Phase 3 — pure schedule engine
-Implement LocalDate/ClockMinute parsing, basic/advanced rule selection, DST handling, steps, break buffers, date-state generation. Endpoints GET availability/dates, GET availability/slots. Tables: simple_schedule, simple_blocked_dates, vacations, schedule_days, schedule_intervals, bookings. Acceptance: table-driven test cases including DST and cross-boundary; no DB query per candidate slot.
+## Фаза 3 — студийные слоты + pure assignment solver
+Опубликованный simple/advanced календарь, личные недели, overrides, approved absence, квалификация, rooms. Чистый `assignment.Solve`, проверка транзитивной компоненты, gap/buffer/DST, limit UNKNOWN. GET availability/dates/slots. Приёмка: совместимые два сеанса в разных комнатах видны, неподходящий staff не создаёт ложные слоты.
 
-## Phase 4 — atomic booking
-Implement POST booking-requests, idempotency_keys, snapshot insertion with client_id=NULL (no client UPSERT), SQL EXCLUDE error mapping. Tables: bookings, booking_events, idempotency_keys (client creation is deliberately deferred until admin assignment). Acceptance: 20 simultaneous requests for same resource/time yield exactly 1 distinct non-cancelled booking; retries with same key receive original receipt; other keys conflict 409; DB remains consistent on errors.
+## Фаза 4 — атомарная заявка
+POST booking-requests с Idempotency-Key и **studio-lock FOR UPDATE**, pending с NULL specialist/room/client, повторное вычисление SAT и записи events; 409 UNSAT/ 503 UNKNOWN. Приёмка: 20 конкурентных запросов в один кабинет дают один успех, при двух подходящих ресурсных парах — до двух успехов; один и тот же ключ даёт одну заявку.
 
-## Phase 5 — admin authentication, clients, bookings
-Implement Argon2id admin bootstrap, POST /admin/sessions, session cookie + CSRF, logout, role middleware, booking status actions, GET listings/dashboard, client CRUD, list-based phone candidate search, explicit PUT /admin/bookings/{id}/client (existing or new profile), and histories by client_id. Tables: admin_users, admin_sessions, clients, bookings, booking_events, audit_log. Acceptance: all admin routes reject unauthenticated access; each transition and prohibited transition tested; unlinked pending cannot be confirmed; duplicate phones on distinct profiles are supported; assignment/reassignment audited; cancelled frees slot; deleted booking forbidden; audit carries actor and action.
+## Фаза 5 — клиенты, назначения, статусы
+Admin client linking (несколько карточек на номер), preview/assignment specialist + room auto-select, прямые запреты и подтверждаемые косвенные конфликты, booking_assignment_events, capacity_exceptions, admin attention dashboard, cancel/restore/confirm. Приёмка: confirmed не требует специалиста, но требует client_id; конфликты прямого назначения запрещены DB и сервисом.
 
-## Phase 6 — schedule mutations
-Implement simple schedule PUT, vacation CRUD, advanced day drafts, preview, range publication, mode switch, history/version restore. Tables: schedule_state, schedule_days, schedule_intervals, simple_schedule, simple_blocked_dates, vacations, schedule_changes, audit_log. Acceptance: changed published revision invalidates stale preview; selected dates publish atomically; restore makes drafts only; existing bookings survive and get out-of-schedule warnings.
+## Фаза 6 — личные графики и запросы отсутствия
+Admin schedule/staff qualifications, specialist submit/withdraw absence, admin preview/approve/reject whole request, archive staff/disable room, warnings and audit. Приёмка: pending absence не влияет на слоты, approved конфликт может оставить назначение с предупреждением, новые брони в проблемном компоненте запрещены.
 
-## Phase 7 — site administration and integration
-Admin service edits/archive, site settings/content, owner export with no-store, frontend adapter contract tests. Tables: services, site_settings, site_content, audit_log. Acceptance: stale requests show useful errors; full UI service booking flow works across separate devices; calendar .ics and QR omit PII.
+## Фаза 7 — завершение специалистом и кабинеты
+Specialist workspace: my bookings/schedule/reassignment events без телефона; own confirmed completion после ends_at; unlimited undo own completion, full audit. Приёмка: admin/чужой специалист не может завершить, early completion запрещён, отмена отметки возвращает confirmed.
 
-## Phase 8 — production reliability
-Load testing, backup/PITR and restore exercises, migration deployment, rate limits, TLS, retention/legal policy review and monitoring. Acceptance: concurrent bookings across two Go instances stay unique; no PII in HTTP logs; production DB credentials least-privileged; rollback/restore plan tested.
+## Фаза 8 — интеграция сайта и публикация
+HttpSiteAPI adapter к frontend, режимы расписания и revision preview/publish, site settings, owner export, pagination; calendar QR/.ics без персональных данных и внутренних staff IDs. Приёмка: frontend не выбирает специалиста; админ вручную назначает и клиентскую карточку, не смешивая их состояния.
 
-Avoid premature Redis, jobs or distributed systems; measure first. A phase is complete only with CI and acceptance tests passing, not merely when handlers compile.
+## Фаза 9 — надёжность
+Два Go инстанса, PostgreSQL concurrent tests, solver performance bounds, migration/backup restore, PII audit, HTTP rate-limits, security checks, CI. Приёмка: гарантии вместимости не зависят от mutex, все миграции проверены на целевой PostgreSQL, нет PII в специалистских ответах.
 
-## Source navigation
-
-Before implementing an API operation, follow its direct JavaScript definition link in the [57-method API mapping](api-mapping.md), then inspect [frontend consumers and known incompatibilities](frontend-source-links.md) and [integration tasks](frontend-integration.md). Frontend branch links are live; the audited baseline commit is recorded in the source index. If the JavaScript changes, reverify the contract instead of assuming the old line numbers are still current.
+Приоритет задают [go-testing.md](go-testing.md) и [migrations.md](migrations.md). Ни один этап не завершён лишь потому, что handler компилируется. Не переносить в production демонстрационные import/reset/clear endpoints.

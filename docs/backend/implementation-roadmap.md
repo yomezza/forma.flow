@@ -1,7 +1,7 @@
-# Implementation plan
+# Краткий план реализации
 
-See go-implementation-guide.md for phase-by-phase acceptance criteria. Suggested order: initial migrations + primary resource timezone; public catalogue/content; pure scheduling engine; booking transaction + concurrent tests; admin sessions/CSRF; status actions and client management; advanced schedule drafts/publish/history; frontend SiteAPI adapter; security, backups and production observability.
+Общий порядок — [подробный Go guide](go-implementation-guide.md): инфраструктура → актуальная SQL-модель (студия, специалисты, кабинеты, роли) → API каталог/аутентификация → published studio schedule + личные графики → pure SAT/UNSAT/UNKNOWN matcher → атомарное бронирование по studio-lock → админские назначения/привязка клиента → отсутствия/архивирование → специалистские отметки завершения → интеграция с frontend → эксплуатационные и конкурентные тесты.
 
-Do not implement a feature in Go merely because the DemoAPI method exists: importData, resetDemoData, clearBookings, clearClientsAndBookings and hard deleteBooking are demo maintenance and require a separate explicit administrative/data-retention policy.
+Обоснование новой модели: [идея 01](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L15-L52). **Не реализовывать старый единый GiST EXCLUDE по resource_id**: он запрещает два законных параллельных сеанса в разных кабинетах. Вместо него назначенные пары защищены двумя EXCLUDE, а все неназначенные обязательства — общим solver под `schedule_state FOR UPDATE`.
 
-All changes to main and frontend remain outside the architecture author's responsibility. Never merge without user approval.
+Демонстрационные `importData`, `resetDemoData`, `clearBookings`, `clearClientsAndBookings`, hard deleteBooking не превращаются автоматически в production endpoints. main и frontend не менять без отдельного задания. Каждый этап принимается по [Go tests](go-testing.md).

@@ -1,47 +1,45 @@
-# Native Go architecture
+# Go-архитектура FORMA TELA — модульный монолит
 
-Choose a modular monolith, explicit SQL and narrow dependencies.
+Актуальная модель учитывает [идею 01: специалисты и кабинеты](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L15-L52) и [сохранение нескольких клиентов на одном телефоне](business-rules.md). Старый подход «один resource = один исполнитель/кабинет» заменён: `resources` — студия, `specialists` и `rooms` — независимые сущности внутри неё.
 
 ~~~text
 backend/
   cmd/server/main.go
-  internal/config/
-  internal/domain/
-  internal/booking/
-  internal/assignment/       # pure joint eligibility solver
-  internal/specialist/       # profiles, competence, personal hours
-  internal/room/             # studio rooms
-  internal/absence/          # absence requests/review
-  internal/client/
-  internal/catalog/
-  internal/schedule/
-  internal/auth/
-  internal/admin/
-  internal/storage/postgres/
-  internal/transport/http/
-  migrations/
+  internal/
+    config/
+    domain/                    # типы, состояния, ошибки, значения времени
+    catalog/                   # услуги и их архивирование
+    client/                    # независимые UUID-карточки, общий телефон возможен
+    booking/                   # заявка, client link, assignment, lifecycle, history
+    assignment/                # чистый SAT/UNSAT/UNKNOWN solver
+    specialist/                # персонал, квалификации, рабочая неделя, overrides
+    room/                      # кабинеты и доступность
+    absence/                   # заявки на отсутствие, approve/reject/withdraw
+    schedule/                  # опубликованный график студии, кандидаты слотов
+    auth/                      # аккаунты, роли, sessions, password lifecycle
+    admin/                     # dashboard, блок внимания, site settings
+    storage/postgres/          # pgxpool, queries, UnitOfWork
+    transport/http/            # net/http, handlers, DTO, middleware, errors
+  migrations/                  # goose
   api/openapi.yaml
   tests/integration/
   go.mod
 ~~~
 
-- transport/http: decode, validation at boundary, auth middleware, HTTP status and error envelopes, serialization.
-- booking/client/catalog/schedule/specialist/room/absence: application use cases and business decisions. Do not import HTTP.
-- schedule/engine + assignment solver: pure, independently tested algorithms taking clock, published rules and busy intervals as arguments.
-- domain: typed values, transition rules and local-date validation; no persistence.
-- storage/postgres: concrete pgxpool transactions and SQL queries, conversion of SQLSTATE to typed errors.
-- auth: password verification, session lifecycle, authorization roles.
-- cmd/server: composition root, connection pool, routing, graceful shutdown.
+## Границы модулей
 
-Only introduce interfaces where tests or multiple implementations need them. Use context.Context as the first argument of I/O operations and deadlines for SQL. Keep network calls outside transactions. Structured log/slog with request IDs; never log names, telephone numbers or session tokens.
+HTTP handlers только декодируют JSON, обеспечивают авторизацию, вызывают сервис и формируют HTTP-ответ. `booking` координирует жизненный цикл и транзакции; `assignment` возвращает свидетельство совместной размещаемости и не импортирует pgx; `schedule` строит студийные слоты и поставляет графики; `specialist/absence/room` реализуют административные use cases. Инфраструктурные SQL-запросы сосредоточены в `storage/postgres`. `cmd/server` связывает зависимости. Интерфейсы вводить только там, где они нужны потребителю для тестирования или замены реализации.
 
-**All capacity-affecting writes** (booking creation/cancel/restore, assignments, staff schedules, absences, rooms, studio publication) lock one studio `schedule_state` row **FOR UPDATE**, recalculate the global matching problem, write and increment `capacity_revision`. READ COMMITTED with that serialized protocol plus two GiST EXCLUDE constraints for assigned staff/room preserves capacity across processes. FOR SHARE is **not sufficient** for unassigned bookings. No Go process mutex.
+## Корректность при параллельных запросах
 
-One resources row represents the **studio**, not a therapist or physical room. There is one seeded room now and multiple may be added later. Specialist and room UUIDs are nullable in bookings until explicit admin assignment; each specialist has an account, allowed services, hours and approved absences. Account roles can combine admin and specialist.
+Любая capacity-changing операция (создание/восстановление/отмена брони, назначение, перенос, смена графика/квалификаций, одобрение отсутствия, архивирование, room activation) выполняется в транзакции с `SELECT schedule_state FOR UPDATE` по ID студии. Это **не FOR SHARE**: несколько неназначенных заявок с NULL специалистом/кабинетом невозможно защитить GiST EXCLUDE без общей сериализации. Внутри блокировки загрузить полный затронутый набор, вызвать `assignment.Solve`, затем записать изменения, повысить capacity_revision и commit. Два EXCLUDE по specialist_id и room_id дополнительно запрещают двойное закрепление даже при ошибке сервиса. Ни `sync.Mutex`, ни один предварительный GET слотов не дают межинстансной гарантии.
 
-Environment: DATABASE_URL, HTTP_ADDR, PUBLIC_ORIGIN, COOKIE_SECURE, DB_POOL_MAX_CONNS, request/statement timeouts, and trusted proxy settings. IANA timezone is stored on resources, not inferred from server process or client browser. Migration runner is a separate deployment step.
+Порядок локов: для idempotent POST — idempotency row, затем studio row, затем booking и прочие изменяемые rows; остальные команды — studio row, затем booking, затем staff/room. Внешние HTTP вызовы в tx запрещены. `context.Context` первым параметром, deadlines, `errors.As` для SQLSTATE 23P01/23505/40001/40P01, `log/slog` без PII.
 
+## Время, безопасность, deployment
 
-## Идея 01: источник и приоритет
+Время — UTC timestamptz в БД, локальная дата/час относительно IANA resource.TimeZone. Переходы DST валидируются явно. Для password использовать Argon2id, аккаунты `staff_accounts` с отдельным `account_roles`; один аккаунт может быть одновременно admin и specialist. **Активный интерфейсный режим роли не является авторизацией**. Персональному кабинету выдавать только профильные DTO без телефонов.
 
-Согласованные требования: [назначения и вместимость](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L15-L26), [личные графики и отсутствия](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L28-L34), [роли](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L36-L43), [завершение и аудит](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L45-L52). Текущий frontend не реализует эти правила; Go/PostgreSQL-проект в данном документе — целевое состояние.
+Конфигурация: DATABASE_URL, HTTP_ADDR, PUBLIC_ORIGIN, COOKIE_SECURE, IANA studio TZ, pool/statement/lock timeouts, solver budget, параметры сессий. Отдельный миграционный этап при деплое, readiness и graceful shutdown. Никакой необходимости в микросервисах, ORM, Redis или Node runtime для этого MVP.
+
+Соседние документы: [Go типы](go-domain-models.md), [контракты](go-service-contracts.md), [SQL](database-schema.sql), [транзакции](database-operations.md), [тесты](go-testing.md).
