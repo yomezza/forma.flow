@@ -1,0 +1,19 @@
+# Booking lifecycle
+
+~~~mermaid
+stateDiagram-v2
+  [*] --> pending_confirmation: public POST
+  pending_confirmation --> confirmed: admin confirms after call
+  pending_confirmation --> cancelled: admin cancels
+  confirmed --> completed: admin completes
+  confirmed --> cancelled: admin cancels
+  cancelled --> pending_confirmation: admin restore, check availability
+~~~
+
+The tel: button is only a link; it does not confirm. Repeat same status changes may be treated as idempotent read/no-op; any other forbidden transition returns 409 INVALID_STATUS_TRANSITION.
+
+Active reservation = pending_confirmation, confirmed or completed for the GiST non-overlap constraint. Completed occupies its past slot historically; cancelled releases the range. No automatic cancellation when changing working hours or vacation. Warning outOfSchedule is calculated for pending/confirmed from the currently active published mode and resource zone; it is not a new status.
+
+Transaction: SELECT booking FOR UPDATE; validate transition and actor; for restore lock schedule_state FOR SHARE, recheck service schedule and slot and let EXCLUDE verify; UPDATE status and fields; INSERT booking_events; INSERT audit_log; COMMIT. Status update also updates confirmed_at/cancelled_at and UTC timestamps. Never delete booking_events. If a DB conflict occurs, return SLOT_UNAVAILABLE.
+
+Public request requires a unique Idempotency-Key; same key and canonical payload return original receipt without new booking; mismatched payload is conflict. Include request hash and key in single transaction so network retry after lost response is safe. Never return full client identity or a guessable booking lookup endpoint to anonymous users.
