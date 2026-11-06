@@ -1,62 +1,61 @@
-# PostgreSQL operations and transaction boundaries
+# PostgreSQL: операции, блокировки и транзакции
 
-## Public POST booking-requests: one transaction, no automatic client match
+Актуально для идеи [01-specialists](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L15-L52). Основной [DDL](database-schema.sql), [общая доступность](scheduling-engine.md), [контракты Go](go-service-contracts.md).
 
-Normalize/validate form name, +7 telephone, service, cabinet-local date/time, consent and Idempotency-Key. Public POST identifies a **pending booking request**, not a verified client. One telephone can legitimately belong to several client UUIDs.
+## Главная гарантия
 
-1. BEGIN READ COMMITTED.
-2. INSERT idempotency_keys(scope,key,request_hash) ON CONFLICT DO NOTHING; SELECT key row FOR UPDATE. If hash differs => IDEMPOTENCY_CONFLICT 409; if booking_id already exists with same hash => 200 original receipt.
-3. SELECT schedule_state WHERE resource_id=$resource FOR SHARE, serialize against schedule writers; load published schedule and service, recalculate slot from cabinet TZ and occupied bookings.
-4. INSERT bookings with client_id=NULL, submitted client_name/client_phone, consent_version, pending_confirmation, service snapshot and timestamps. **Do not create or lookup client.** PostgreSQL GiST EXCLUDE is authoritative; SQLSTATE 23P01 => SLOT_UNAVAILABLE 409.
-5. INSERT initial booking_events, UPDATE idempotency_keys.booking_id, COMMIT. New request => 201; identical retry => 200.
+`resources` — студия, **не** единственный кабинет. PostgreSQL запрещает двойное закрепление через два partial GiST EXCLUDE: `bookings_specialist_no_overlap` и `bookings_room_no_overlap`. Эти ограничения не охватывают заявки с `specialist_id=NULL, room_id=NULL`. Поэтому **каждая меняющая вместимость транзакция** сериализуется через `SELECT ... FROM schedule_state WHERE resource_id=$1 FOR UPDATE`, после чего вызывается общий solver размещения. `FOR SHARE` больше не подходит. Эта гарантия действует между экземплярами Go.
 
-The lock order is idempotency key → schedule_state FOR SHARE → bookings. EXCLUDE prevents double booking across Go processes. No Go sync.Mutex required. A public response never reveals other clients or profile IDs.
+Порядок блокировок: при публичном POST сначала `idempotency_keys`, затем `schedule_state FOR UPDATE`, далее изменяемые booking/специалист/кабинет. У прочих команд сначала прочитать неизменный `resource_id`, затем studio-lock, потом `booking FOR UPDATE`. Избегать инверсии порядка и обращений к внешним API внутри tx. `READ COMMITTED` допустим при обязательном studio-lock для всех capacity writes; EXCLUDE страхует прямые коллизии.
 
-## Admin finds possible profiles
+## Публичная заявка — POST /api/v1/booking-requests
 
-~~~sql
-SELECT id,full_name,phone_normalized,created_at,updated_at
-FROM clients WHERE phone_normalized=$1
-ORDER BY full_name,id LIMIT $2;
-~~~
+1. Проверить данные, обязательное согласие, нормализовать +7 телефон и UTC момент по IANA TZ студии, получить idempotency hash; клиент карточкой **не определяется**.
+2. BEGIN; вставить idempotency key с ON CONFLICT DO NOTHING, SELECT FOR UPDATE. При повторе с тем же payload вернуть прежнюю receipt; с новым payload — 409.
+3. SELECT schedule_state FOR UPDATE. Получить активный опубликованный режим, услугу, рабочие интервалы специалистов, разрешённые услуги, утверждённые отсутствия, активные кабинеты и пересекающиеся pending/confirmed обязательства.
+4. Построить транзитивную компоненту пересечений с новым кандидатом; проверить отсутствие открытой capacity-аномалии в этой компоненте; запустить solver. SAT → продолжить; UNSAT → `SLOT_UNAVAILABLE` (409); UNKNOWN/лимит → `CAPACITY_CHECK_LIMIT` (503) без резервирования.
+5. INSERT booking `pending_confirmation`, `client_id=NULL`, `specialist_id=NULL`, `room_id=NULL` с контактным snapshot и consent; INSERT booking_events; связать idempotency key; повысить `capacity_revision` студии; COMMIT.
+6. Отдать 201 либо 200 при повторе, только публичную receipt без исполнителей и телефонов.
 
-This returns **zero, one, or many** matches. Never automatically pick first. The old JS findClientByPhone returns one/null and must be adapted to findClientsByPhone returning a list.
+При одной комнате два пересекающихся запроса не пройдут вместе, хотя оба могут физически иметь NULL assignment в таблице; solver и DB lock дают инвариант. Две комнаты и два совместимых специалиста допускают параллельные сеансы.
 
-## Admin explicitly assigns client to booking
+## Назначение/переназначение — PUT /admin/bookings/{id}/assignment
 
-PUT /admin/bookings/{id}/client accepts exactly one of {"clientId":"UUID"} OR {"newClient":{"fullName":"...","phone":"+7..."}}.
-1. BEGIN; SELECT booking FOR UPDATE; validate admin rights.
-2. Existing: SELECT clients WHERE id=$clientId. New: INSERT clients(full_name,phone_normalized) VALUES (...) RETURNING id; duplicate phone and even identical full name are allowed. Creating and linking happen atomically.
-3. UPDATE bookings SET client_id=$id, updated_at=now() WHERE id=$bookingId; keep original booking.client_name/client_phone snapshots.
-4. INSERT audit_log for association (old/new UUID and admin actor), COMMIT. Assigning the same UUID twice is idempotent. Changing a link is an explicit audited correction.
+Предпросмотр (без записи) возвращает `capacityRevision`, допустимую пару и конкретные ID косвенно пострадавших неназначенных заявок. Сервер при команде **повторно** выполняет его после `schedule_state FOR UPDATE`, проверяя `expectedCapacityRevision`. Затем `booking FOR UPDATE` и статус pending/confirmed. `roomId:null` означает автоматический подбор активной комнаты в устойчивом порядке. Проверки: услуга, смена, отсутствие, уже занятые конкретные specialist/room. Прямые нарушения всегда 409. Только вытеснение других **неназначенных** допускает `acknowledgedBookingIds` со строгим равенством актуальному набору.
 
-Admin confirms only after a client profile has been linked: pending_confirmation → confirmed requires client_id NOT NULL (otherwise CLIENT_LINK_REQUIRED, 409). An unlinked pending request may be cancelled. Restore of a cancelled booking goes to pending_confirmation and must pass schedule + EXCLUDE again; it may still have client_id NULL.
+Обновить `bookings.specialist_id,room_id,assignment_updated_at`, append `booking_assignment_events` с before/after, append `audit_log`, `capacity_exceptions` для подтверждённого косвенного ущерба, повысить revision; COMMIT. SQLSTATE 23P01 → 409. Статус подтверждения не меняется автоматически. Прежние назначенные записи нельзя молча переставлять ради SAT.
 
-## Client records
+## Привязка клиентской карточки и статусы
 
-INSERT clients permits repeated normalized phones. Only internal UUID is unique. Client phone/name edits do not rewrite booking snapshots. Bookings linked to client A are never associated with client B just because they share phone. No automatic merge or contact-person entity.
+`PUT /admin/bookings/{id}/client`: `booking FOR UPDATE`, SELECT выбранного client UUID либо INSERT нового (телефон не уникален), UPDATE `client_id`, audit; snapshots ФИО/телефона не переписывать. `pending_confirmation → confirmed` разрешено администратору при `client_id IS NOT NULL`, **без обязательного specialist_id**. `cancelled → pending_confirmation` вызывает общую проверку capacity и EXCLUDE; отмена освобождает время. Все capacity changes используют studio lock.
 
-## Schedule publication
+`confirmed → completed`: только текущий назначенный специалист (связь authenticated account → specialist UUID), только когда `now >= ends_at`; `booking FOR UPDATE`, UPDATE `completed_by_specialist_id/completed_at,status`, INSERT `booking_completion_events`, `booking_events`, `audit_log`; COMMIT. Специалист, который завершил, может в любой момент отменить **свою** отметку: `completed → confirmed`, новый event `undone`, прежняя история сохраняется. Админ сам не завершает.
 
-BEGIN; SELECT schedule_state FOR UPDATE, verify expectedRevision or 409; recompute conflicts; update only selected published days/drafts, increment revision, INSERT schedule_changes + audit_log, COMMIT. Existing bookings remain.
+## Утверждение отсутствия, редакция графика, архив
 
-## Booking status transition
+Специалист создаёт/отзывает только собственную `pending` absence request — публичная вместимость от этого не меняется. Админ `approveAbsence` в tx: studio-lock, проверка pending, проверка пересечений и подтверждённых ID, `approved`, audit и актуализация `capacity_exceptions`; уже назначенные сеансы остаются со статусом, но отмечаются `REQUIRES_REASSIGNMENT`. `rejectAbsence` требует причины. Архив/отключение кабинета или смена специализаций/личного графика выполняются под студийной блокировкой, оставляют историю и пересчитывают предупреждения. Публикация студийного режима использует **две ревизии**: `schedule_state.revision` для правил и `capacity_revision` для доступности.
 
-BEGIN; SELECT booking FOR UPDATE; check finite-state transition and for confirmation enforce non-NULL client_id. UPDATE status/timestamps, INSERT booking_events + audit_log; COMMIT. Cancelled frees time, completed remains historically occupied; restore additionally validates schedule and EXCLUDE.
-
-## Representative SQL
+## SQL чтения
 
 ~~~sql
-SELECT starts_at,blocked_until,status FROM bookings
-WHERE resource_id=$1 AND starts_at<$3 AND blocked_until>$2 AND status<>'cancelled' ORDER BY starts_at;
-SELECT id,full_name,phone_normalized FROM clients WHERE phone_normalized=$1 ORDER BY full_name,id;
-SELECT id,starts_at,status FROM bookings WHERE client_id=$1 ORDER BY starts_at DESC LIMIT $2;
-SELECT id,starts_at,client_name,client_phone,client_id FROM bookings
-WHERE status='pending_confirmation' ORDER BY starts_at LIMIT $1;
+-- Активные обязательства в окне; загружать одним набором для построения компонент
+SELECT id, service_id, specialist_id, room_id, starts_at, blocked_until, status
+FROM bookings
+WHERE resource_id=$1 AND starts_at < $3 AND blocked_until > $2
+ AND status IN ('pending_confirmation','confirmed')
+ORDER BY starts_at,id;
+
+-- Заявки конкретного специалиста; не отдавать client_phone в DTO
+SELECT id,client_name,service_name,local_date,local_time,status,room_id
+FROM bookings
+WHERE specialist_id=$1 AND status IN ('pending_confirmation','confirmed','completed')
+ORDER BY starts_at,id;
+
+-- Поиск всех карточек по одному телефону, без автоматического выбора
+SELECT id,full_name,phone_normalized FROM clients
+WHERE phone_normalized=$1 ORDER BY full_name,id;
 ~~~
 
-Apply pgx transactions, bounded queries, statement timeouts and actual PostgreSQL concurrency integration tests.
+Интервалы `[starts_at, blocked_until)` учитывают буфер. При выборе компоненты извлекать все связанные записи (в том числе перекрывающиеся через цепочку); один ограниченный запрос + расширение диапазона до замыкания либо запрос всех записей ограниченной даты с проверкой в Go, **не** только тех, кто непосредственно пересекает кандидата. Угрожающие PII операции не логировать сырыми запросами.
 
-## Source comparisons
-
-The old demo [matches clients by phone during request creation](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L303-L321), whereas the accepted Go transaction creates an unlinked pending booking and requires administrator selection. The old demo [serializes some writes via browser Web Locks](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L241-L245); PostgreSQL EXCLUDE and transactions replace this guarantee across devices. For a complete source map see [frontend-source-links.md](frontend-source-links.md).
+[Тесты конкурентного бронирования](go-testing.md), [миграции](migrations.md).

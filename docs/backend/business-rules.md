@@ -1,27 +1,29 @@
-# Business rules / source-of-truth
+# Бизнес-правила FORMA TELA (Go/PostgreSQL)
 
-## Booking
-Public visitor chooses active service, local date/time, enters surname/name and +7 phone and consent, submits request. The booking status starts as pending_confirmation and reserves time. The admin calls and manually confirms. Preserve service snapshot (name, duration, exact RUB integer price, currency), form name and telephone in the booking even if client/service is later edited. No anonymous confirmed booking endpoint.
+Действующее дополнение: [ideas/01-specialists](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L13-L70). Текущий [frontend DemoAPI](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L1-L345) ещё не реализует новое поведение.
 
-Transitions: pending_confirmation → confirmed/cancelled; confirmed → completed/cancelled; cancelled → pending_confirmation only through authenticated restore after full availability check; completed terminal. Never delete historical bookings because a schedule changes. The status itself is not a schedule warning.
+## Клиенты и запись
 
-## Client
-A phone is a contact field, not a unique identifier: relatives may share +7XXXXXXXXXX. Only client UUID identifies a person, and even (fullName, phone) is not guaranteed unique. Public POST creates pending_confirmation storing submitted fullName/phone and leaves client_id=NULL; it neither creates nor selects a client. An administrator views all candidates for that phone (0..N), explicitly links an existing profile or creates+links a new one. Confirmation requires a linked client, while cancellation before linking is permitted. Histories group by client_id and never by phone alone. Do not overwrite booking snapshots on association or edit. Client merges are reviewed/audited, never automatic. No separate contact-person entity.
+Посетитель выбирает **услугу, дату и время, но не специалиста**; сообщает ФИО и +7 телефон и согласие. Публичный POST создаёт `pending_confirmation` и бронирует **ёмкость** студии, даже если `specialist_id=NULL` и `room_id=NULL`. Клиентская карточка также не привязана автоматически: один телефон может быть у многих людей. Админ создаёт или выбирает `client_id` вручную, и только после этого подтверждает по телефону. Подтверждение разрешено **без назначенного специалиста**. Snapshots услуги, ФИО, телефона, цены и длительности неизменны.
 
-## Schedule
-Two distinct independent modes: simple weekly graph with step, break, blocked dates, vacations; advanced dated published/drafts with working/off/unplanned, multiple intervals and stepOverride. Missing advanced published day is unplanned. Public never reads drafts. Vacations only affect simple mode, as the JavaScript code currently does. When switching modes, retain settings and preview conflict counts before commit. Revision on schedule_state prevents stale preview acceptance.
+Состояния `pending_confirmation`, `confirmed`, `completed`, `cancelled`. Админ подтверждает/отменяет/восстанавливает; **назначенный специалист** завершает подтверждённую запись не раньше планового окончания и может отозвать свою отметку без ограничения по времени. Связь с кабинетом и специалистом — отдельное действие админа, с отдельной историей, до завершения. Отмена освобождает вместимость; все события сохраняются.
 
-A publishing operation changes only selected dates, never deletes bookings, writes a change record and an audit record, and returns a fresh revision. Restore never directly republishes old versions; it copies historical before_state into draft. Publish with out-of-schedule bookings requires explicit acknowledgment of the IDs; server recalculates conflicts under lock.
+## Специалисты и кабинеты
 
-## Open questions before public launch
-- Set the actual IANA timezone of the cabinet (demo seed doesn't provide one).
-- Confirm DST ambiguity policy (proposed: no slots at skipped/repeated minute).
-- Confirm whether vacations should eventually apply to advanced mode (currently no).
-- Confirm notice/cancellation windows and personal-data retention/erasure policy.
-- Confirm production permissions for personal data export.
+Администратор создаёт/архивирует сотрудников, выбирает их услуги, назначает недельные интервалы и исключения, создаёт/отключает кабинеты. Специалист не изменяет свою рабочую неделю. Каждый специалист имеет свой `specialistId` и привязанную (не обязательно сразу) учётную запись с ролями `admin` и/или `specialist`. Логика выбора кабинета автоматическая при назначении; админ вправе выбрать другой совместимый кабинет. Сейчас одна студия и один кабинет → одновременно один сеанс; при добавлении кабинетов и персонала параллельная работа становится возможной.
 
-Business questions above do not block writing the architecture draft, but do block real production configuration.
+**Вместимость считается совместно:** все взаимно пересекающиеся действующие заявки (включая неназначенные) должны допускать совместное распределение по подходящим специалистам и кабинетам. Одной пары «свободный сотрудник — свободная комната» для новой заявки недостаточно. Занятые конкретные ресурсы защищены DB EXCLUDE, а неназначенные обязательства — solver под studio-lock в PostgreSQL.
 
-## Verified frontend references and accepted divergences
+## Графики и отсутствия
 
-Existing [status transitions](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L43-L52), [client match and public booking](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L303-L321), [schedule publication](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L273-L289), and [administrative confirmation button](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/admin.js#L129-L148) are linked for inspection. Unlike the current demo, the Go design does **not** uniquely identify a client by phone; the administrator must link the correct profile before confirmation.
+Публичная доступность — пересечение **опубликованного расписания студии** (simple или advanced), личной недели специалиста с административными исключениями, разрешённых услуг, утверждённых отсутствий и занятости кабинетов. Персональный расширенный календарь пока не нужен. Специалист может только подать заявку на день/диапазон отсутствия или часть дня. Пока `pending`, она не меняет слоты. Администратор целиком утверждает либо отклоняет с обязательной причиной; специалист может отозвать только pending. Разрешено утвердить конфликтующее отсутствие с подтверждением конкретных проблемных booking IDs; существующие назначения не удаляются и появляются предупреждения.
+
+При ручном назначении косвенно пострадавшие **неназначенные** заявки могут быть оставлены без решения только после явного подтверждения админом. Прямые нарушения (некомпетентный/занятый специалист или комната) не разрешаются. Новые публичные записи в затронутом временном компоненте блокируются до исправления; соседние компоненты работают. Не создавать скрытых автоматических отмен, переназначений, SMS или смен услуг.
+
+## Роли и видимость
+
+Аккаунт может одновременно иметь admin и specialist. Переключатель роли меняет интерфейс, а сервер проверяет разрешённые роли независимо. Специалист видит **только свои** назначенные pending/confirmed/completed с именем посетителя, услугой, датой/временем, **без номера телефона**; не видит неназначенные или чужие текущие записи. История его переназначений показывается отдельными обезличенными событиями. Админ видит очередь «Требуют внимания» для отсутствующих назначений, конфликтов, отпусков и проблем графика.
+
+## Открытые настройки до production
+
+Фактический IANA TZ студии, политика DST gaps/folds, уведомления клиентов, данные персонала, сроки хранения персональной информации, полномочия экспорта, предельная сложность solver. Это вопросы конфигурации/эксплуатации, не повод возвращаться к модели одного кабинета.

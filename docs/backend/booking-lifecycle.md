@@ -1,28 +1,24 @@
-# Booking lifecycle
+# Жизненный цикл бронирования и назначений
+
+[Источник идеи № 01, пункты о статусах](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L45-L52) · [Источник DemoAPI](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L43-L52).
 
 ~~~mermaid
 stateDiagram-v2
-  [*] --> pending_confirmation: public POST
-  pending_confirmation --> confirmed: admin confirms after call
-  pending_confirmation --> cancelled: admin cancels
-  confirmed --> completed: admin completes
-  confirmed --> cancelled: admin cancels
-  cancelled --> pending_confirmation: admin restore, check availability
+  [*] --> pending_confirmation: публичная заявка
+  pending_confirmation --> confirmed: админ подтверждает при linked client
+  pending_confirmation --> cancelled: админ отменяет
+  confirmed --> cancelled: админ отменяет
+  confirmed --> completed: назначенный специалист после конца
+  completed --> confirmed: тот же специалист отменяет свою отметку
+  cancelled --> pending_confirmation: админ восстанавливает после solver
 ~~~
 
-The tel: button is only a link; it does not confirm. New pending booking has client_id=NULL until admin explicitly chooses or creates the client profile; confirmation without profile returns 409 CLIENT_LINK_REQUIRED. Cancel without profile remains allowed. Changes to a link are audited and never rewrite original client_name/client_phone snapshots. Repeat same status changes may be treated as idempotent read/no-op; any other forbidden transition returns 409 INVALID_STATUS_TRANSITION.
+**Подтверждение ≠ назначение.** `specialist_id/room_id` оба NULL до назначения; `confirmed` законен без специалиста, но только с клиентской карточкой `client_id`. Дата, время, услуга и первоначальные данные посетителя — snapshots. Телефон не является идентичностью клиента; несколько клиентов могут иметь один номер.
 
-Active reservation = pending_confirmation, confirmed or completed for the GiST non-overlap constraint. Completed occupies its past slot historically; cancelled releases the range. No automatic cancellation when changing working hours or vacation. Warning outOfSchedule is calculated for pending/confirmed from the currently active published mode and resource zone; it is not a new status.
+Назначение/переназначение администратором допустимо для pending/confirmed, с выбором активного компетентного специалиста и автоматически или вручную определённого кабинета. Статус не меняется. Непригодный/занятый исполнитель или кабинет — прямой запрет; вытеснение **других неназначенных** можно подтвердить явно с аудитом и запретом новых заявок в проблемном временном компоненте. Отсутствия/архивирование не стирают историю, показывают предупреждения.
 
-Transaction: SELECT booking FOR UPDATE; validate transition and actor; for restore lock schedule_state FOR SHARE, recheck service schedule and slot and let EXCLUDE verify; UPDATE status and fields; INSERT booking_events; INSERT audit_log; COMMIT. Status update also updates confirmed_at/cancelled_at and UTC timestamps. Never delete booking_events. If a DB conflict occurs, return SLOT_UNAVAILABLE.
+Новый `completed` ставит **только назначенный специалист** по окончании `ends_at` и при статусе `confirmed`; админ не имеет этого действия. Завершивший специалист может отменить отметку без срока, оставив событие в append-only history. `completed` и `cancelled` не переназначаются. Старый completed без автора после миграции — исторический legacy, не придумывать исполнителя.
 
-Public request requires a unique Idempotency-Key; same key and canonical payload return original receipt without new booking; mismatched payload is conflict. Include request hash and key in single transaction so network retry after lost response is safe. Never return full client identity or a guessable booking lookup endpoint to anonymous users.
+Прямой SQL запрет накладок — два partial EXCLUDE по specialist_id и room_id; глобальный capacity solver плюс `schedule_state FOR UPDATE` защищает **неназначенные** заявки в разных экземплярах Go. Отмена frees resources; восстановление — новая полная проверка (клиент может оставаться связанным или NULL). Подробности в [database-operations.md](database-operations.md) и [scheduling-engine.md](scheduling-engine.md).
 
-## Existing frontend references
-
-- [Demo status transitions](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L43-L52)
-- [Demo public request creation, current automatic client lookup](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L314-L321)
-- [Admin booking controls](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/admin.js#L129-L148)
-- [Public submit and SLOT_UNAVAILABLE response](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/booking-form.js#L38-L56)
-
-The **admin client-link prerequisite** is new architecture, not implemented by those JavaScript controls. See [integration tasks](frontend-integration.md).
+Специалист получает свои pending/confirmed/completed записи без телефонов и чужих броней; бывший специалист получает только события своего переназначения, а не чужую текущую карточку.
