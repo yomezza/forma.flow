@@ -36,7 +36,7 @@ Test matrix:
 - 2026-03-29 Europe/Berlin at 02:30 local: gap rejected; 2026-10-25 at 02:30: fold rejected. Other normal dates unaffected.
 - Date/current time cutoff uses cabinet IANA zone and injected Clock, not host process location.
 - Pending and confirmed reserve; cancelled frees; completed remains protected as historical event.
-- Client repeat phone normalized from 8/+7/10 digits links same client; malicious different fullName never overwrites canonical client name.
+- Phone normalizes from 8/+7/10 digits but is NOT a unique client identifier. Multiple clients (even identical fullName and phone) have separate UUIDs and histories. Public booking sets client_id=NULL; admin candidate search returns all matches, explicit linking precedes confirmation. Malicious or mistaken same-phone input must never auto-link or overwrite a client.
 - Status: each allowed transition, all forbidden pairs, cancelled restore collision, status no-op.
 - Change active mode retains independent settings, preview conflicts, out-of-schedule warnings don't change status.
 - Publish range with stale expectedRevision returns 409 and writes nothing; restore history goes to draft only.
@@ -44,7 +44,7 @@ Test matrix:
 
 ## PostgreSQL concurrency integration
 
-Start 20 goroutines with separate pgxpool connections + barrier, unique idempotency keys, same resource/date/time; expect exactly 1 committed booking, 19 SLOT_UNAVAILABLE; verify SQLSTATE 23P01 translation. Repeat across two independent server instances. Same key and identical body requested by 20 goroutines returns same booking ID exactly once; same key changed payload => IDEMPOTENCY_CONFLICT. Force rollback after client UPSERT or booking INSERT: no orphan committed client/idempotency rows. Verify cancelled time reusable and restore conflict rejected. Validate exclusion with a different start but overlapping buffer, not just identical start.
+Start 20 goroutines with separate pgxpool connections + barrier, unique idempotency keys, same resource/date/time; expect exactly 1 committed booking, 19 SLOT_UNAVAILABLE; verify SQLSTATE 23P01 translation. Repeat across two independent server instances. Same key and identical body requested by 20 goroutines returns same booking ID exactly once; same key changed payload => IDEMPOTENCY_CONFLICT. Force rollback after booking INSERT: no partial booking/idempotency rows. Force rollback after new-client INSERT during admin assignment: no orphan profile and no linked booking. Verify cancelled time reusable and restore conflict rejected. Validate exclusion with a different start but overlapping buffer, not just identical start.
 
 ## HTTP tests
 
@@ -55,3 +55,14 @@ httptest.NewRecorder / httptest.NewServer: JSON decode and body limit, auth cook
 Apply goose up into empty database, replay up no-op, validate indices/FKs/exclusion, test down only on throwaway DB. Verify backup restoration and representative 100k booking rows EXPLAIN plans. Test concurrent publish vs booking (schedule_state lock) and serializing conflicting vacation/schedule changes. Run go test -race ./... for code races, but do not confuse this with SQL concurrency tests.
 
 Additional DB invariant tests: INSERT with ends_at inconsistent with duration_minutes must fail CHECK; INSERT with blocked_until inconsistent with buffer_minutes must fail; exactly one non-cancelled booking may occupy an overlapping span after race.
+
+## Tests: shared family phone
+
+1. Clients A and B share +79991234567; two INSERTs succeed, different UUIDs.
+2. Public booking1 (Ivan) and booking2 (Maria) use the same phone but different times; client_id=NULL for both, status pending_confirmation, slots reserved.
+3. Admin candidate GET finds both profiles and returns array/page; public endpoint never lists profiles.
+4. Explicitly link booking1→A, booking2→B; each GET /admin/clients/{id}/bookings shows only that person's history, including cancelled entries.
+5. Confirm pending without client link returns 409 CLIENT_LINK_REQUIRED, after assignment it succeeds.
+6. Cancel unlinked pending succeeds; restore rechecks slot and remains pending.
+7. Create profile C with identical name and phone to profile A succeeds; no automatic merge or dedup.
+8. Audit log records original/new UUID on corrected association. SQL EXCLUDE still prevents overlapping reservations regardless of client_id.

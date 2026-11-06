@@ -31,3 +31,7 @@ Partially implemented / deviations:
 Planned, not implemented: Go backend, PostgreSQL database, admin sessions, cross-device consistency, API idempotency, durable audit, operational backups. See api-mapping.md for the complete inventory and classification.
 
 Additional verified code issue: getDateStates(a,b,id) tests (!id || !available(...).length) and therefore reports working dates as full when the optional service id is absent; frontend should correct the adapter semantics rather than copy this expression to Go.
+
+## User-approved divergence from current JavaScript DemoAPI
+
+The current frontend's normalized phone is unique and its findClientByPhone returns a single profile. This is now **superseded as a production requirement**: one number may be shared by multiple clients. The Go/PostgreSQL plan allows duplicate phone values, preserves client UUID identities, and leaves public pending bookings unlinked until an administrator assigns a profile explicitly. This change is architectural documentation only; the frontend source still has the old behavior. No separate contact-person entity is wanted.

@@ -21,3 +21,5 @@ Frontend: frontend branch and JavaScript DemoAPI; backend developer: main and Go
 - Destructive DemoAPI functions are NOT production HTTP endpoints.
 
 Sources: https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js and https://github.com/yomezza/forma.flow/blob/frontend/docs/DEMO_API.md .
+
+Approved client identity rule: several clients (including relatives) may share one phone. Phone is never an automatic identifier. Public requests begin without client_id; administrator links an existing or new client before confirmation. No separate contact-person entity; see business-rules.md and frontend-integration.md.

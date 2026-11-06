@@ -10,7 +10,7 @@ Frontend source: dist/js/demo-api.js at frontend commit 1bdc8c63eb0db12445e4a6dc
 | 2 | getServiceById(id) | GET /services/{id} | Public.GetService → catalog.Get | services SELECT |
 | 3 | getAvailableSlots(date,id) | GET /availability/slots?date=&serviceId= | Public.AvailableSlots → schedule.Slots | services, schedule_state, simple_schedule/schedule_days/schedule_intervals, bookings |
 | 4 | getDateStates(a,b,id) | GET /availability/dates?from=&to=&serviceId= | Public.DateStates → schedule.DateStates | bulk read published schedule and bookings |
-| 5 | createBookingRequest(data) | POST /booking-requests | Public.CreateBooking → booking.CreateRequest | tx idempotency_keys, services, clients, bookings, booking_events |
+| 5 | createBookingRequest(data) | POST /booking-requests | Public.CreateBooking → booking.CreateRequest | tx idempotency_keys, services, bookings (client_id=NULL), booking_events; admin later assigns |
 | 6 | createBooking(data) | NO production endpoint | Demo-only direct confirmed booking | legacy confirmed-without-client is unsafe for public usage |
 
 ## Services (admin)
@@ -30,7 +30,7 @@ Frontend source: dist/js/demo-api.js at frontend commit 1bdc8c63eb0db12445e4a6dc
 | 12 | getPendingBookings() | GET /admin/bookings?status=pending_confirmation | Admin.ListBookings → booking.List | bookings partial pending index |
 | 13 | getBookingsForDate(d) | GET /admin/bookings?date= | Admin.ListBookings → booking.List | bookings local_date filter |
 | 14 | getBookingWarnings() | GET /admin/schedule/warnings | Admin.BookingWarnings → schedule.Warnings | active bookings + published schedule |
-| 15 | confirmBooking(id) | POST /admin/bookings/{id}/confirm | Admin.ConfirmBooking → booking.Transition | tx bookings, booking_events, audit_log |
+| 15 | confirmBooking(id) | POST /admin/bookings/{id}/confirm | Admin.ConfirmBooking → booking.Transition | tx bookings (requires linked client_id), booking_events, audit_log |
 | 16 | cancelBooking(id,note) | POST /admin/bookings/{id}/cancel | Admin.CancelBooking → booking.Transition | tx bookings, booking_events, audit_log |
 | 17 | completeBooking(id) | POST /admin/bookings/{id}/complete | Admin.CompleteBooking → booking.Transition | tx bookings, booking_events, audit_log |
 | 18 | restoreBooking(id) | POST /admin/bookings/{id}/restore | Admin.RestoreBooking → booking.Restore | tx schedule_state, bookings EXCLUDE, booking_events |
@@ -44,8 +44,8 @@ Frontend source: dist/js/demo-api.js at frontend commit 1bdc8c63eb0db12445e4a6dc
 |---|---|---|---|---|
 | 22 | getClients() | GET /admin/clients | Admin.ListClients → client.List | clients SELECT paginated |
 | 23 | getClientById(id) | GET /admin/clients/{id} | Admin.GetClient → client.Get | clients SELECT |
-| 24 | findClientByPhone(phone) | GET /admin/clients/by-phone?phone= | Admin.FindClient → client.FindPhone | clients unique normalized phone |
-| 25 | createClient(data) | POST /admin/clients | Admin.CreateClient → client.Create | clients INSERT |
+| 24 | findClientByPhone(phone) | GET /admin/clients/by-phone?phone= | Admin.FindClientsByPhone → client.ListByPhone | non-unique clients.phone_normalized index; returns all candidates |
+| 25 | createClient(data) | POST /admin/clients | Admin.CreateClient → client.Create | clients INSERT (duplicate phone allowed) |
 | 26 | updateClient(id,data) | PATCH /admin/clients/{id} | Admin.UpdateClient → client.Update | clients UPDATE + audit_log |
 | 27 | getClientBookings(id) | GET /admin/clients/{id}/bookings | Admin.ClientBookings → booking.ListClient | bookings client history |
 | 28 | clearClientsAndBookings() | NO production endpoint | Demo-only wipe | no cascade deletes of history |
@@ -95,3 +95,11 @@ Frontend source: dist/js/demo-api.js at frontend commit 1bdc8c63eb0db12445e4a6dc
 | 57 | resetDemoData() | NO production endpoint | Demo-only reset | none |
 
 Notes: list methods become paginated HTTP responses; current UI expects arrays, so adapter unwraps items and optionally fetches more pages. Write methods that currently accept no expectedRevision gain a version parameter; the API may reject stale writes with 409 VERSION_CONFLICT. POST /booking-requests adds Idempotency-Key header and returns 201 or 200 on replay. Full wire schemas: openapi.yaml.
+
+## New administrative operation (not present in the 57 DemoAPI methods)
+
+| Frontend adapter addition | REST | Go HTTP handler → service | PostgreSQL |
+|---|---|---|---|
+| assignBookingClient(bookingId, {clientId} or {newClient}) | PUT /admin/bookings/{id}/client | Admin.AssignBookingClient → booking.AssignClient | tx bookings row lock, clients SELECT or INSERT, bookings.client_id UPDATE, audit_log INSERT |
+
+The old findClientByPhone(phone) returns only one client/null in the JavaScript demo. It must become **findClientsByPhone(phone) returning 0..N candidates** in the production administrator workflow, not a silent first result. Existing 57-row inventory still accurately describes current DemoAPI, not necessarily future method signatures. Public booking never creates or selects a client; administrator assignment is mandatory before confirmation. No separate contact-person entity.
