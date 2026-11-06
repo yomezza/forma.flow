@@ -142,6 +142,8 @@ CREATE TABLE bookings (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CHECK (starts_at < ends_at AND ends_at <= blocked_until),
+  CHECK (ends_at = starts_at + make_interval(mins => duration_minutes)),
+  CHECK (blocked_until = ends_at + make_interval(mins => buffer_minutes)),
   CHECK (status != 'confirmed' OR confirmed_at IS NOT NULL),
   CONSTRAINT bookings_no_overlap EXCLUDE USING gist
     (resource_id WITH =, tstzrange(starts_at,blocked_until,'[)') WITH &&)

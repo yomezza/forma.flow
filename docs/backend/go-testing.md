@@ -53,3 +53,5 @@ httptest.NewRecorder / httptest.NewServer: JSON decode and body limit, auth cook
 ## Migration and operations tests
 
 Apply goose up into empty database, replay up no-op, validate indices/FKs/exclusion, test down only on throwaway DB. Verify backup restoration and representative 100k booking rows EXPLAIN plans. Test concurrent publish vs booking (schedule_state lock) and serializing conflicting vacation/schedule changes. Run go test -race ./... for code races, but do not confuse this with SQL concurrency tests.
+
+Additional DB invariant tests: INSERT with ends_at inconsistent with duration_minutes must fail CHECK; INSERT with blocked_until inconsistent with buffer_minutes must fail; exactly one non-cancelled booking may occupy an overlapping span after race.

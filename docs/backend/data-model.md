@@ -27,3 +27,5 @@ Local date/time are snapshots and should equal starts_at expressed in the resour
 Working days 0=Sunday..6=Saturday matching JS getDay. Working hours do not cross midnight in MVP. Public API never returns clients/booking details or admin schedule drafts.
 
 Full PostgreSQL DDL: database-schema.sql; index rationale: database-indexes.md.
+
+SQL adds CHECK constraints tying ends_at to duration_minutes and blocked_until to buffer_minutes; together with the partial EXCLUDE this prevents inconsistent stored time spans from bypassing the collision rule. This is enforced in the database, not only in Go.
