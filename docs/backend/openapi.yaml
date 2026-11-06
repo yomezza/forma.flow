@@ -1,9 +1,9 @@
-# FORMA TELA OpenAPI 3.1 — design contract, not a deployed server
+# FORMA TELA — OpenAPI 3.1 architecture contract (not a deployed backend)
 "openapi": "3.1.0"
 "info":
   "title": "FORMA TELA Go Backend API"
   "version": "0.1.0"
-  "description": "Design-stage contract. Prefix /api/v1. Requires auth for all admin paths; do not expose demo resets/import."
+  "description": "Design-stage contract. Prefix /api/v1. Requires auth for all admin paths; do not expose demo resets/import. One phone can belong to multiple clients; admin client association is explicit."
 "servers":
   -
     "url": "/"
@@ -1058,7 +1058,7 @@
               "schema":
                 "$ref": "#/components/schemas/ErrorEnvelope"
         "409":
-          "description": "Error 409"
+          "description": "CLIENT_LINK_REQUIRED if booking.clientId is null; INVALID_STATUS_TRANSITION otherwise"
           "content":
             "application/json":
               "schema":
@@ -1503,8 +1503,8 @@
     "get":
       "tags":
         - "Admin"
-      "operationId": "adminFindClientByPhone"
-      "summary": "Exact normalized phone lookup"
+      "operationId": "adminListClientsByPhone"
+      "summary": "List all possible client profiles for a shared normalized phone; never automatically assign"
       "security":
         -
           "adminCookie": []
@@ -1517,7 +1517,7 @@
           "content":
             "application/json":
               "schema":
-                "$ref": "#/components/schemas/Client"
+                "$ref": "#/components/schemas/ClientsPage"
         "400":
           "description": "Error 400"
           "content":
@@ -1566,6 +1566,7 @@
             "application/json":
               "schema":
                 "$ref": "#/components/schemas/ErrorEnvelope"
+      "description": "The same phone may belong to several clients. Response can contain zero, one or many candidates. Authenticated administrator only."
   "/api/v1/admin/clients/{id}":
     "get":
       "tags":
@@ -3402,6 +3403,94 @@
               "schema":
                 "$ref": "#/components/schemas/ErrorEnvelope"
       "x-required-role": "owner"
+  "/api/v1/admin/bookings/{id}/client":
+    "put":
+      "tags":
+        - "Admin"
+      "operationId": "adminAssignBookingClient"
+      "summary": "Explicitly assign an existing client or create+link new client; audited transaction"
+      "description": "No automatic phone matching. A public pending booking starts with clientId null. Admin selects a profile or creates one. Name/phone snapshots on the booking never change. Confirmation requires a linked client. No separate contact-person entity."
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/BookingId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/ClientAssociationInput"
+            "examples":
+              "existing":
+                "value":
+                  "clientId": "ded1c777-2445-47b1-bbd3-33b74294ad07"
+              "newClient":
+                "value":
+                  "newClient":
+                    "fullName": "Мария Петрова"
+                    "phone": "+79991234567"
+      "responses":
+        "200":
+          "description": "Booking with explicit client association"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Booking"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-go-handler": "Admin.AssignBookingClient"
+      "x-go-service": "booking.AssignClient"
+      "x-postgresql": "BEGIN; bookings SELECT FOR UPDATE; clients SELECT or INSERT; bookings UPDATE client_id; audit_log INSERT; COMMIT"
 "components":
   "securitySchemes":
     "adminCookie":
@@ -3757,8 +3846,11 @@
           "type": "object"
           "properties":
             "clientId":
-              "type": "string"
+              "type":
+                - "string"
+                - "null"
               "format": "uuid"
+              "description": "null until administrator explicitly links a client profile"
             "clientName":
               "type": "string"
             "clientPhone":
@@ -4530,3 +4622,23 @@
       "type": "object"
       "description": "Owner-only JSON export, includes personal data; no-store"
       "additionalProperties": true
+    "ClientAssociationInput":
+      "description": "Choose one existing client UUID OR create and link a new client; exactly one choice; never infer identity from phone."
+      "oneOf":
+        -
+          "type": "object"
+          "properties":
+            "clientId":
+              "type": "string"
+              "format": "uuid"
+          "required":
+            - "clientId"
+          "additionalProperties": false
+        -
+          "type": "object"
+          "properties":
+            "newClient":
+              "$ref": "#/components/schemas/ClientInput"
+          "required":
+            - "newClient"
+          "additionalProperties": false
