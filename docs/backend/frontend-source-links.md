@@ -54,3 +54,10 @@ The links document **current JavaScript code**, not an implemented backend. The 
 ## Update procedure
 
 Before changing any architecture requirement, review the latest `frontend` head and confirm that these branch links still point to the intended definitions. If the corresponding function moved, update anchors. Never change files in `main` or `frontend` from this branch. Do not silently interpret a documented target behavior as already implemented in DemoAPI.
+
+### Working example: moving branch vs fixed permalink
+
+- [Current `frontend` code for `createBookingRequest`](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L314-L321) — follows subsequent pushes to the frontend branch, so anchors should be rechecked.
+- [The same code frozen at audited commit](https://github.com/yomezza/forma.flow/blob/1bdc8c63eb0db12445e4a6dc0bf717967df0d9cf/dist/js/demo-api.js#L314-L321) — does not move when new frontend commits arrive.
+
+Both links navigate directly to code in another Git branch/commit, without copying the JavaScript into the architecture branch.

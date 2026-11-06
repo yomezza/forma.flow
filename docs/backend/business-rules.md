@@ -21,3 +21,7 @@ A publishing operation changes only selected dates, never deletes bookings, writ
 - Confirm production permissions for personal data export.
 
 Business questions above do not block writing the architecture draft, but do block real production configuration.
+
+## Verified frontend references and accepted divergences
+
+Existing [status transitions](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L43-L52), [client match and public booking](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L303-L321), [schedule publication](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L273-L289), and [administrative confirmation button](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/admin.js#L129-L148) are linked for inspection. Unlike the current demo, the Go design does **not** uniquely identify a client by phone; the administrator must link the correct profile before confirmation.

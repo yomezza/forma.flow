@@ -13,3 +13,7 @@ Availability/rate: per-IP and abuse-pattern throttling for POST booking, body si
 Backups: daily encrypted snapshot plus PITR if operational RPO/RTO require it, periodic restore drill and restricted access. Application-level full import/reset/clear routes are intentionally excluded from production.
 
 Client candidate matching by phone and booking-to-client assignment are administrative operations only. Never publish a client directory to the public visitor. Administrators must explicitly select the actual client profile; automatic phone-based identity matching is forbidden, even when the lookup returns a single candidate. Shared phones are normal; no separate contact-person entity is created.
+
+## Source boundary
+
+The [current admin trigger/view switch](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/admin.js#L1-L24) is frontend-only, and [demo JSON exports/imports](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/admin.js#L312-L329) can include personal data. These linked source fragments explain why the Go server requires independent authentication, audited privileged exports and safe admin-only client matching.

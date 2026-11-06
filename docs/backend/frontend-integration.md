@@ -1,6 +1,6 @@
 # Frontend/backend integration (action list for frontend developer)
 
-Keep all existing public/admn components consuming SiteAPI. Replace its backend implementation, not UI call sites where possible. Use a switch between DemoAPI (local demo) and HttpSiteAPI (production). No direct fetch in components.
+Keep all existing public/admin components consuming SiteAPI. Replace its backend implementation, not UI call sites where possible. Use a switch between DemoAPI (local demo) and HttpSiteAPI (production). No direct fetch in components.
 
 ## Method adaptations
 
@@ -37,3 +37,13 @@ Authentication: build an actual admin login screen and session expiry UX. CSRF t
 ## Admin UX task: several clients sharing one phone
 
 A new request shows submitted name/telephone, remains reserved and unlinked (clientId:null). The admin should view all possible phone matches (possibly none; list IDs/names/history); **never automatically select a profile**, not even the only hit. Provide “Связать с существующим клиентом” or “Создать нового клиента” to associate with the booking; confirm only after assignment. Cancellation works without assigning a profile. Changing an accidental link is allowed only through an audited administrator action. Do not rewrite the booking's submitted name and phone. The public form stays unchanged and there is NO separate contact-person entity. Frontend source files in frontend branch are not edited here.
+
+## Cross-branch evidence for the frontend developer
+
+- [Current `SiteAPI` alias](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L344-L345) and [frontend API reference](https://github.com/yomezza/forma.flow/blob/frontend/docs/DEMO_API.md#L1-L108).
+- [Public date/slot consumers](https://github.com/yomezza/forma.flow/blob/frontend/dist/app.js#L70-L116); [booking form network/error UX](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/booking-form.js#L38-L56).
+- [Administrative list, client profile and booking confirmation](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/admin.js#L125-L177).
+- [Planner previews and publication](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/planner.js#L143-L157); [unsaved form store](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/draft-store.js#L1-L13).
+- [Existing calendar event exporter](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/calendar-event.js#L41-L85).
+
+These links open source in `frontend` but **this document only describes required future frontend work**; it does not change that branch.

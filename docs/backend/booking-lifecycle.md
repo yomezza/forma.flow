@@ -17,3 +17,12 @@ Active reservation = pending_confirmation, confirmed or completed for the GiST n
 Transaction: SELECT booking FOR UPDATE; validate transition and actor; for restore lock schedule_state FOR SHARE, recheck service schedule and slot and let EXCLUDE verify; UPDATE status and fields; INSERT booking_events; INSERT audit_log; COMMIT. Status update also updates confirmed_at/cancelled_at and UTC timestamps. Never delete booking_events. If a DB conflict occurs, return SLOT_UNAVAILABLE.
 
 Public request requires a unique Idempotency-Key; same key and canonical payload return original receipt without new booking; mismatched payload is conflict. Include request hash and key in single transaction so network retry after lost response is safe. Never return full client identity or a guessable booking lookup endpoint to anonymous users.
+
+## Existing frontend references
+
+- [Demo status transitions](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L43-L52)
+- [Demo public request creation, current automatic client lookup](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L314-L321)
+- [Admin booking controls](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/admin.js#L129-L148)
+- [Public submit and SLOT_UNAVAILABLE response](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/booking-form.js#L38-L56)
+
+The **admin client-link prerequisite** is new architecture, not implemented by those JavaScript controls. See [integration tasks](frontend-integration.md).

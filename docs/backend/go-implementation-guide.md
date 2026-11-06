@@ -30,3 +30,7 @@ Admin service edits/archive, site settings/content, owner export with no-store, 
 Load testing, backup/PITR and restore exercises, migration deployment, rate limits, TLS, retention/legal policy review and monitoring. Acceptance: concurrent bookings across two Go instances stay unique; no PII in HTTP logs; production DB credentials least-privileged; rollback/restore plan tested.
 
 Avoid premature Redis, jobs or distributed systems; measure first. A phase is complete only with CI and acceptance tests passing, not merely when handlers compile.
+
+## Source navigation
+
+Before implementing an API operation, follow its direct JavaScript definition link in the [57-method API mapping](api-mapping.md), then inspect [frontend consumers and known incompatibilities](frontend-source-links.md) and [integration tasks](frontend-integration.md). Frontend branch links are live; the audited baseline commit is recorded in the source index. If the JavaScript changes, reverify the contract instead of assuming the old line numbers are still current.

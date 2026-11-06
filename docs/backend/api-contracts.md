@@ -50,3 +50,7 @@ Schedule preview returns revision; every related write must include expectedRevi
 ## Shared-phone association
 
 One contact phone may belong to multiple independent client IDs. POST /booking-requests creates a pending booking with **clientId = null** in the administrative representation; submitted name/phone are stored as snapshots. GET /admin/clients/by-phone?phone= returns a page of all matching clients (not a single client). PUT /admin/bookings/{id}/client accepts either {"clientId":"uuid"} or {"newClient":{"fullName":"...","phone":"+7..."}}; backend selects or creates the profile and links it to the booking in a single audited transaction. Confirm without link returns 409 CLIENT_LINK_REQUIRED. Production admin UI requires explicit choice; no contact-person table.
+
+## Existing implementation references
+
+The initial contract was derived from [frontend DemoAPI documentation](https://github.com/yomezza/forma.flow/blob/frontend/docs/DEMO_API.md#L1-L108), [actual method definitions](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L246-L345), and [booking form consumers](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/booking-form.js#L38-L56). Browse the full [cross-branch source map](frontend-source-links.md). The OpenAPI specification is **proposed Go REST behavior**; the linked JavaScript source is not an HTTP API.

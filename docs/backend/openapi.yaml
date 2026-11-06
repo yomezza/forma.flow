@@ -4,6 +4,9 @@
   "title": "FORMA TELA Go Backend API"
   "version": "0.1.0"
   "description": "Design-stage contract. Prefix /api/v1. Requires auth for all admin paths; do not expose demo resets/import. One phone can belong to multiple clients; admin client association is explicit."
+"externalDocs":
+  "description": "Existing JavaScript DemoAPI in the frontend branch (not a deployed REST backend)"
+  "url": "https://github.com/yomezza/forma.flow/blob/frontend/docs/DEMO_API.md#L1-L108"
 "servers":
   -
     "url": "/"
@@ -179,6 +182,9 @@
       "tags":
         - "Public"
       "operationId": "getSlots"
+      "externalDocs":
+        "description": "Current frontend DemoAPI slot computation"
+        "url": "https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L226-L239"
       "summary": "Available HH:mm in cabinet timezone"
       "parameters":
         -
@@ -233,6 +239,9 @@
       "tags":
         - "Public"
       "operationId": "createBookingRequest"
+      "externalDocs":
+        "description": "Current frontend DemoAPI createBookingRequest implementation"
+        "url": "https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L314-L321"
       "summary": "Reserve a pending request atomically; replay returns 200 with same receipt"
       "parameters":
         -
@@ -1504,6 +1513,9 @@
       "tags":
         - "Admin"
       "operationId": "adminListClientsByPhone"
+      "externalDocs":
+        "description": "Current frontend singular client phone lookup: intentionally superseded by list-based lookup"
+        "url": "https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L303-L313"
       "summary": "List all possible client profiles for a shared normalized phone; never automatically assign"
       "security":
         -
@@ -2981,6 +2993,9 @@
       "tags":
         - "Schedule"
       "operationId": "adminPublishSchedule"
+      "externalDocs":
+        "description": "Current frontend schedule publication implementation"
+        "url": "https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L276-L285"
       "summary": "Atomically publish selected draft range"
       "security":
         -

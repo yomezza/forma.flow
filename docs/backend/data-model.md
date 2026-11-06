@@ -33,3 +33,10 @@ SQL adds CHECK constraints tying ends_at to duration_minutes and blocked_until t
 ## Shared-phone client rule
 
 A client is identified by UUID, not phone and not (name, phone). Several clients may share identical phone and name. Admin chooses existing profile or creates a new one explicitly when processing an unlinked booking. Public POST leaves client_id NULL and does not create clients. Cancellation before linking is allowed; confirming requires a link. Client history uses bookings.client_id exclusively. Admin reassignment is logged and never overwrites booking client_name/client_phone snapshots. No separate contact-person entity.
+
+## Frontend source references
+
+- [Default catalogue, service fields and simple schedule](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-data.js#L1-L18).
+- [Client uniqueness in current demo](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L25-L43) and [booking-time automatic association](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L303-L321), both **superseded** for Go by the shared-phone rule.
+- [Published/draft date rule representation](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L99-L118).
+- [Client/card history rendered by frontend](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/admin.js#L153-L176).

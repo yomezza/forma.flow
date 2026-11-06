@@ -56,3 +56,7 @@ WHERE status='pending_confirmation' ORDER BY starts_at LIMIT $1;
 ~~~
 
 Apply pgx transactions, bounded queries, statement timeouts and actual PostgreSQL concurrency integration tests.
+
+## Source comparisons
+
+The old demo [matches clients by phone during request creation](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L303-L321), whereas the accepted Go transaction creates an unlinked pending booking and requires administrator selection. The old demo [serializes some writes via browser Web Locks](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L241-L245); PostgreSQL EXCLUDE and transactions replace this guarantee across devices. For a complete source map see [frontend-source-links.md](frontend-source-links.md).
