@@ -37,7 +37,6 @@ const DemoAPI = (() => {
   }
   function newClient(db,data){
     const fields=identity(data),now=new Date().toISOString();
-    check(!db.clients.some(c=>c.phoneNormalized===fields.phoneNormalized),'Этот номер уже принадлежит другому клиенту.');
     const c={...fields,id:uid(),createdAt:now,updatedAt:now};db.clients.push(c);return c;
   }
   function transition(db,id,status,note=''){
@@ -98,6 +97,21 @@ const DemoAPI = (() => {
     }
     if([2,3].includes(db.version) && db.settings && db.settings.vacations===undefined) db.settings.vacations=[];
     if(db.version===2){db.clients??=[];db.version=3}
+    if(db.version===3){
+      db.revision=0;
+      db.specialists=[];
+      db.rooms=[];
+      db.specialistServices=[];
+      db.specialistSchedules=[];
+      db.absenceRequests=[];
+      db.accounts=[];
+      db.demoSession={activeAccountId:null,activeRole:null};
+      db.assignmentEvents=[];
+      db.auditEvents=[];
+      db.capacityExceptions=[];
+      for(const booking of db.bookings){booking.specialistId=null;booking.roomId=null;booking.assignmentUpdatedAt=null;booking.completion=null;}
+      db.version=4;
+    }
     return db;
   }
   function dayRule(data) {
