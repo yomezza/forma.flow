@@ -1,9 +1,9 @@
-# FORMA TELA — OpenAPI 3.1 architecture contract (not a deployed backend)
+# OpenAPI 3.1 contract for FORMA TELA Go backend; architecture, not deployed API
 "openapi": "3.1.0"
 "info":
   "title": "FORMA TELA Go Backend API"
-  "version": "0.1.0"
-  "description": "Design-stage contract. Prefix /api/v1. Requires auth for all admin paths; do not expose demo resets/import. One phone can belong to multiple clients; admin client association is explicit."
+  "version": "0.2.0"
+  "description": "Design-stage contract. Prefix /api/v1. Requires auth for all admin paths; do not expose demo resets/import. One phone can belong to multiple clients; admin client association is explicit. Idea 01: studio resources with multiple specialists and rooms; joint assignment capacity is transactional."
 "externalDocs":
   "description": "Existing JavaScript DemoAPI in the frontend branch (not a deployed REST backend)"
   "url": "https://github.com/yomezza/forma.flow/blob/frontend/docs/DEMO_API.md#L1-L108"
@@ -19,6 +19,9 @@
     "name": "Admin"
   -
     "name": "Schedule"
+  -
+    "name": "Specialist"
+    "description": "Authenticated actions for assigned specialist only"
 "paths":
   "/api/v1/services":
     "get":
@@ -185,7 +188,7 @@
       "externalDocs":
         "description": "Current frontend DemoAPI slot computation"
         "url": "https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L226-L239"
-      "summary": "Available HH:mm in cabinet timezone"
+      "summary": "Possible slots using full matching of all overlapping unassigned bookings and available rooms/staff"
       "parameters":
         -
           "$ref": "#/components/parameters/Date"
@@ -242,7 +245,7 @@
       "externalDocs":
         "description": "Current frontend DemoAPI createBookingRequest implementation"
         "url": "https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L314-L321"
-      "summary": "Reserve a pending request atomically; replay returns 200 with same receipt"
+      "summary": "Serialize studio capacity, jointly match overlapping appointments, store unassigned pending booking"
       "parameters":
         -
           "$ref": "#/components/parameters/Idempotency"
@@ -422,7 +425,7 @@
       "tags":
         - "Authentication"
       "operationId": "loginAdmin"
-      "summary": "Create secure admin session"
+      "summary": "Create a staff session, enforce first password change; roles can include specialist"
       "requestBody":
         "required": true
         "content":
@@ -1026,7 +1029,7 @@
       "tags":
         - "Admin"
       "operationId": "adminConfirmBooking"
-      "summary": "confirm booking with lifecycle validation"
+      "summary": "Confirm pending booking after explicit client association; staff assignment optional"
       "security":
         -
           "adminCookie": []
@@ -1165,81 +1168,12 @@
             "application/json":
               "schema":
                 "$ref": "#/components/schemas/ErrorEnvelope"
-  "/api/v1/admin/bookings/{id}/complete":
-    "post":
-      "tags":
-        - "Admin"
-      "operationId": "adminCompleteBooking"
-      "summary": "complete booking with lifecycle validation"
-      "security":
-        -
-          "adminCookie": []
-      "parameters":
-        -
-          "$ref": "#/components/parameters/BookingId"
-        -
-          "$ref": "#/components/parameters/Csrf"
-      "responses":
-        "200":
-          "description": "Successful response"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/Booking"
-        "400":
-          "description": "Error 400"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "401":
-          "description": "Error 401"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "403":
-          "description": "Error 403"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "404":
-          "description": "Error 404"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "409":
-          "description": "Error 409"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "422":
-          "description": "Error 422"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "429":
-          "description": "Error 429"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "500":
-          "description": "Error 500"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
   "/api/v1/admin/bookings/{id}/restore":
     "post":
       "tags":
         - "Admin"
       "operationId": "adminRestoreBooking"
-      "summary": "restore booking with lifecycle validation"
+      "summary": "Restore pending booking only after serialized joint capacity check"
       "security":
         -
           "adminCookie": []
@@ -3506,6 +3440,2093 @@
       "x-go-handler": "Admin.AssignBookingClient"
       "x-go-service": "booking.AssignClient"
       "x-postgresql": "BEGIN; bookings SELECT FOR UPDATE; clients SELECT or INSERT; bookings UPDATE client_id; audit_log INSERT; COMMIT"
+  "/api/v1/admin/specialists":
+    "get":
+      "tags":
+        - "Admin"
+      "operationId": "adminListSpecialists"
+      "summary": "List specialists, optionally archived"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/IncludeArchived"
+        -
+          "$ref": "#/components/parameters/Cursor"
+        -
+          "$ref": "#/components/parameters/Limit"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/SpecialistList"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-required-role": "admin"
+    "post":
+      "tags":
+        - "Admin"
+      "operationId": "adminCreateSpecialist"
+      "summary": "Create specialist and assign eligible service IDs"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "201":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Specialist"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/SpecialistInput"
+      "x-required-role": "admin"
+  "/api/v1/admin/specialists/{id}":
+    "get":
+      "tags":
+        - "Admin"
+      "operationId": "adminGetSpecialist"
+      "summary": "Get specialist"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/SpecialistId"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Specialist"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-required-role": "admin"
+    "patch":
+      "tags":
+        - "Admin"
+      "operationId": "adminUpdateSpecialist"
+      "summary": "Modify specialist and competencies; capacity lock"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/SpecialistId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Specialist"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/SpecialistUpdate"
+      "x-required-role": "admin"
+  "/api/v1/admin/specialists/{id}/archive":
+    "post":
+      "tags":
+        - "Admin"
+      "operationId": "adminArchiveSpecialist"
+      "summary": "Archive without losing assignments; mark warnings"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/SpecialistId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Specialist"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-required-role": "admin"
+  "/api/v1/admin/specialists/{id}/schedule":
+    "get":
+      "tags":
+        - "Admin"
+      "operationId": "adminGetSpecialistSchedule"
+      "summary": "Personal weekly schedule and overrides"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/SpecialistId"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/SpecialistSchedule"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-required-role": "admin"
+    "put":
+      "tags":
+        - "Admin"
+      "operationId": "adminSetSpecialistSchedule"
+      "summary": "Edit personal schedule; atomic capacity revision"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/SpecialistId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/SpecialistSchedule"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/SpecialistSchedule"
+      "x-required-role": "admin"
+  "/api/v1/admin/rooms":
+    "get":
+      "tags":
+        - "Admin"
+      "operationId": "adminListRooms"
+      "summary": "List rooms"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/IncludeInactive"
+        -
+          "$ref": "#/components/parameters/Cursor"
+        -
+          "$ref": "#/components/parameters/Limit"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/RoomList"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-required-role": "admin"
+    "post":
+      "tags":
+        - "Admin"
+      "operationId": "adminCreateRoom"
+      "summary": "Create room"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "201":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Room"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/RoomInput"
+      "x-required-role": "admin"
+  "/api/v1/admin/rooms/{id}":
+    "patch":
+      "tags":
+        - "Admin"
+      "operationId": "adminUpdateRoom"
+      "summary": "Update room, mark affected existing appointments"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/RoomId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Room"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/RoomUpdate"
+      "x-required-role": "admin"
+  "/api/v1/admin/bookings/{id}/assignment/candidates":
+    "get":
+      "tags":
+        - "Admin"
+      "operationId": "adminAssignmentCandidates"
+      "summary": "Compatible specialists and rooms, with global matcher"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/BookingId"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/AssignmentCandidates"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-required-role": "admin"
+  "/api/v1/admin/bookings/{id}/assignment/preview":
+    "post":
+      "tags":
+        - "Admin"
+      "operationId": "adminPreviewAssignment"
+      "summary": "Preview direct/indirect assignment conflicts"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/BookingId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/AssignmentPreview"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/AssignmentRequest"
+      "x-required-role": "admin"
+  "/api/v1/admin/bookings/{id}/assignment":
+    "put":
+      "tags":
+        - "Admin"
+      "operationId": "adminAssignBooking"
+      "summary": "Commit staff and room together, validate global capacity"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/BookingId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Booking"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/AssignmentRequest"
+      "x-required-role": "admin"
+  "/api/v1/admin/bookings/{id}/assignment/events":
+    "get":
+      "tags":
+        - "Admin"
+      "operationId": "adminGetAssignmentEvents"
+      "summary": "Booking staff/room assignment audit"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/BookingId"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/AssignmentEvents"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-required-role": "admin"
+  "/api/v1/admin/attention":
+    "get":
+      "tags":
+        - "Admin"
+      "operationId": "adminAttention"
+      "summary": "Admin attention list for staff/room/absence warnings"
+      "security":
+        -
+          "adminCookie": []
+      "parameters": []
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/AttentionResult"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-required-role": "admin"
+  "/api/v1/admin/absence-requests":
+    "get":
+      "tags":
+        - "Admin"
+      "operationId": "adminListAbsences"
+      "summary": "List all staff leave requests"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Cursor"
+        -
+          "$ref": "#/components/parameters/Limit"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/AbsenceList"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-required-role": "admin"
+  "/api/v1/admin/absence-requests/{id}/preview":
+    "post":
+      "tags":
+        - "Admin"
+      "operationId": "adminPreviewAbsenceApproval"
+      "summary": "Preview impacts of approving leave"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/AbsenceId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/AttentionResult"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-required-role": "admin"
+  "/api/v1/admin/absence-requests/{id}/approve":
+    "post":
+      "tags":
+        - "Admin"
+      "operationId": "adminApproveAbsence"
+      "summary": "Approve full absence including explicit warning acknowledgement"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/AbsenceId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/AbsenceRequest"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/AbsenceDecision"
+      "x-required-role": "admin"
+  "/api/v1/admin/absence-requests/{id}/reject":
+    "post":
+      "tags":
+        - "Admin"
+      "operationId": "adminRejectAbsence"
+      "summary": "Reject absence with required reason"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/AbsenceId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/AbsenceRequest"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/AbsenceDecision"
+      "x-required-role": "admin"
+  "/api/v1/specialist/me/bookings":
+    "get":
+      "tags":
+        - "Specialist"
+      "operationId": "specialistMyBookings"
+      "summary": "Only current specialist's appointments, without phone"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Cursor"
+        -
+          "$ref": "#/components/parameters/Limit"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/SpecialistBookingList"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-required-role": "specialist"
+  "/api/v1/specialist/me/schedule":
+    "get":
+      "tags":
+        - "Specialist"
+      "operationId": "specialistMySchedule"
+      "summary": "Current specialist's schedule and approved absence"
+      "security":
+        -
+          "adminCookie": []
+      "parameters": []
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/SpecialistSchedule"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-required-role": "specialist"
+  "/api/v1/specialist/me/absence-requests":
+    "get":
+      "tags":
+        - "Specialist"
+      "operationId": "specialistMyAbsences"
+      "summary": "Only personal leave requests"
+      "security":
+        -
+          "adminCookie": []
+      "parameters": []
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/AbsenceList"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-required-role": "specialist"
+    "post":
+      "tags":
+        - "Specialist"
+      "operationId": "specialistSubmitAbsence"
+      "summary": "Submit absence, no immediate effect on availability"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "201":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/AbsenceRequest"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/AbsenceInput"
+      "x-required-role": "specialist"
+  "/api/v1/specialist/me/absence-requests/{id}/withdraw":
+    "post":
+      "tags":
+        - "Specialist"
+      "operationId": "specialistWithdrawAbsence"
+      "summary": "Withdraw only own pending leave"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/AbsenceId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/AbsenceRequest"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-required-role": "specialist"
+  "/api/v1/specialist/me/assignment-events":
+    "get":
+      "tags":
+        - "Specialist"
+      "operationId": "specialistOwnReassignmentEvents"
+      "summary": "Own past assignment events, no other bookings/phones"
+      "security":
+        -
+          "adminCookie": []
+      "parameters": []
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/AssignmentEvents"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-required-role": "specialist"
+  "/api/v1/specialist/me/bookings/{id}/complete":
+    "post":
+      "tags":
+        - "Specialist"
+      "operationId": "specialistCompleteBooking"
+      "summary": "Complete own confirmed appointment after its planned end"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/BookingId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/SpecialistBooking"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-required-role": "specialist"
+  "/api/v1/specialist/me/bookings/{id}/undo-completion":
+    "post":
+      "tags":
+        - "Specialist"
+      "operationId": "specialistUndoCompletion"
+      "summary": "Undo own completion at any later time; audited"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/BookingId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "200":
+          "description": "Success"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/SpecialistBooking"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "503":
+          "description": "Error 503"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/StatusNote"
+      "x-required-role": "specialist"
 "components":
   "securitySchemes":
     "adminCookie":
@@ -3663,6 +5684,41 @@
       "required": true
       "schema":
         "type": "string"
+    "SpecialistId":
+      "name": "id"
+      "in": "path"
+      "required": true
+      "schema":
+        "type": "string"
+        "format": "uuid"
+    "RoomId":
+      "name": "id"
+      "in": "path"
+      "required": true
+      "schema":
+        "type": "string"
+        "format": "uuid"
+    "AbsenceId":
+      "name": "id"
+      "in": "path"
+      "required": true
+      "schema":
+        "type": "string"
+        "format": "uuid"
+    "IncludeArchived":
+      "name": "includeArchived"
+      "in": "query"
+      "required": false
+      "schema":
+        "type": "boolean"
+        "default": false
+    "IncludeInactive":
+      "name": "includeInactive"
+      "in": "query"
+      "required": false
+      "schema":
+        "type": "boolean"
+        "default": false
   "schemas":
     "ErrorEnvelope":
       "type": "object"
@@ -3886,12 +5942,34 @@
               "type": "string"
             "outOfSchedule":
               "type": "boolean"
+            "specialistId":
+              "type":
+                - "string"
+                - "null"
+              "format": "uuid"
+            "roomId":
+              "type":
+                - "string"
+                - "null"
+              "format": "uuid"
+            "assignmentUpdatedAt":
+              "type":
+                - "string"
+                - "null"
+              "format": "date-time"
+            "completedAt":
+              "type":
+                - "string"
+                - "null"
+              "format": "date-time"
           "required":
             - "clientId"
             - "clientName"
             - "clientPhone"
             - "createdAt"
             - "updatedAt"
+            - "specialistId"
+            - "roomId"
           "additionalProperties": true
     "Client":
       "type": "object"
@@ -4513,21 +6591,42 @@
         "adminId":
           "type": "string"
           "format": "uuid"
+          "description": "Legacy field alias for authenticated staff account ID; migrate to accountId"
         "role":
           "type": "string"
           "enum":
-            - "admin"
             - "owner"
+            - "admin"
+            - "specialist"
         "expiresAt":
           "type": "string"
           "format": "date-time"
         "csrfToken":
           "type": "string"
+        "roles":
+          "type": "array"
+          "items":
+            "type": "string"
+            "enum":
+              - "owner"
+              - "admin"
+              - "specialist"
+        "activeRole":
+          "type": "string"
+          "enum":
+            - "owner"
+            - "admin"
+            - "specialist"
+        "accountId":
+          "type": "string"
+          "format": "uuid"
       "required":
         - "adminId"
         - "role"
         - "expiresAt"
         - "csrfToken"
+        - "roles"
+        - "accountId"
       "additionalProperties": false
     "StatusNote":
       "type": "object"
@@ -4657,3 +6756,530 @@
           "required":
             - "newClient"
           "additionalProperties": false
+    "Specialist":
+      "type": "object"
+      "properties":
+        "id":
+          "type": "string"
+          "format": "uuid"
+        "resourceId":
+          "type": "string"
+          "format": "uuid"
+        "accountId":
+          "type":
+            - "string"
+            - "null"
+          "format": "uuid"
+        "fullName":
+          "type": "string"
+        "state":
+          "type": "string"
+          "enum":
+            - "active"
+            - "archived"
+        "serviceIds":
+          "type": "array"
+          "items":
+            "type": "string"
+        "archivedAt":
+          "type":
+            - "string"
+            - "null"
+          "format": "date-time"
+      "required":
+        - "id"
+        - "resourceId"
+        - "fullName"
+        - "state"
+        - "serviceIds"
+      "additionalProperties": false
+    "Room":
+      "type": "object"
+      "properties":
+        "id":
+          "type": "string"
+          "format": "uuid"
+        "resourceId":
+          "type": "string"
+          "format": "uuid"
+        "name":
+          "type": "string"
+        "sortOrder":
+          "type": "integer"
+        "isActive":
+          "type": "boolean"
+      "required":
+        - "id"
+        - "resourceId"
+        - "name"
+        - "sortOrder"
+        - "isActive"
+      "additionalProperties": false
+    "PersonalInterval":
+      "type": "object"
+      "properties":
+        "start":
+          "type": "string"
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        "end":
+          "type": "string"
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+      "required":
+        - "start"
+        - "end"
+      "additionalProperties": false
+    "SpecialistSchedule":
+      "type": "object"
+      "properties":
+        "specialistId":
+          "type": "string"
+          "format": "uuid"
+        "revision":
+          "type": "integer"
+          "format": "int64"
+        "week":
+          "type": "object"
+          "additionalProperties":
+            "type": "array"
+            "items":
+              "$ref": "#/components/schemas/PersonalInterval"
+        "overrides":
+          "type": "object"
+          "additionalProperties":
+            "type": "object"
+            "properties":
+              "kind":
+                "type": "string"
+                "enum":
+                  - "working"
+                  - "off"
+              "intervals":
+                "type": "array"
+                "items":
+                  "$ref": "#/components/schemas/PersonalInterval"
+            "required":
+              - "kind"
+              - "intervals"
+            "additionalProperties": false
+      "required":
+        - "specialistId"
+        - "revision"
+        - "week"
+        - "overrides"
+      "additionalProperties": false
+    "SpecialistInput":
+      "type": "object"
+      "properties":
+        "fullName":
+          "type": "string"
+        "serviceIds":
+          "type": "array"
+          "items":
+            "type": "string"
+        "accountId":
+          "type":
+            - "string"
+            - "null"
+          "format": "uuid"
+      "required":
+        - "fullName"
+        - "serviceIds"
+      "additionalProperties": false
+    "SpecialistUpdate":
+      "type": "object"
+      "properties":
+        "fullName":
+          "type": "string"
+        "serviceIds":
+          "type": "array"
+          "items":
+            "type": "string"
+      "required": []
+      "additionalProperties": false
+    "RoomInput":
+      "type": "object"
+      "properties":
+        "name":
+          "type": "string"
+        "sortOrder":
+          "type": "integer"
+          "default": 0
+      "required":
+        - "name"
+      "additionalProperties": false
+    "RoomUpdate":
+      "type": "object"
+      "properties":
+        "name":
+          "type": "string"
+        "sortOrder":
+          "type": "integer"
+        "isActive":
+          "type": "boolean"
+      "required": []
+      "additionalProperties": false
+    "AssignmentRequest":
+      "type": "object"
+      "properties":
+        "specialistId":
+          "type": "string"
+          "format": "uuid"
+        "roomId":
+          "type":
+            - "string"
+            - "null"
+          "format": "uuid"
+        "expectedCapacityRevision":
+          "type": "integer"
+          "format": "int64"
+        "acknowledgedBookingIds":
+          "type": "array"
+          "items":
+            "type": "string"
+            "format": "uuid"
+      "required":
+        - "specialistId"
+        - "expectedCapacityRevision"
+      "additionalProperties": false
+    "AssignmentPreview":
+      "type": "object"
+      "properties":
+        "allowed":
+          "type": "boolean"
+        "requiresConfirmation":
+          "type": "boolean"
+        "capacityRevision":
+          "type": "integer"
+        "specialistId":
+          "type": "string"
+          "format": "uuid"
+        "roomId":
+          "type":
+            - "string"
+            - "null"
+          "format": "uuid"
+        "affectedBookingIds":
+          "type": "array"
+          "items":
+            "type": "string"
+            "format": "uuid"
+        "reason":
+          "type":
+            - "string"
+            - "null"
+      "required":
+        - "allowed"
+        - "requiresConfirmation"
+        - "capacityRevision"
+        - "affectedBookingIds"
+      "additionalProperties": false
+    "AssignmentCandidates":
+      "type": "object"
+      "properties":
+        "capacityRevision":
+          "type": "integer"
+        "candidates":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/AssignmentPreview"
+      "required":
+        - "capacityRevision"
+        - "candidates"
+      "additionalProperties": false
+    "AbsenceRequest":
+      "type": "object"
+      "properties":
+        "id":
+          "type": "string"
+          "format": "uuid"
+        "specialistId":
+          "type": "string"
+          "format": "uuid"
+        "kind":
+          "type": "string"
+          "enum":
+            - "day_off"
+            - "vacation"
+        "scope":
+          "type": "string"
+          "enum":
+            - "full_days"
+            - "partial_day"
+        "startDate":
+          "type": "string"
+          "format": "date"
+        "endDate":
+          "type": "string"
+          "format": "date"
+        "startTime":
+          "type":
+            - "string"
+            - "null"
+        "endTime":
+          "type":
+            - "string"
+            - "null"
+        "status":
+          "type": "string"
+          "enum":
+            - "pending"
+            - "approved"
+            - "rejected"
+            - "withdrawn"
+        "reason":
+          "type": "string"
+        "reviewNote":
+          "type": "string"
+        "reviewedAt":
+          "type":
+            - "string"
+            - "null"
+          "format": "date-time"
+      "required":
+        - "id"
+        - "specialistId"
+        - "kind"
+        - "scope"
+        - "startDate"
+        - "endDate"
+        - "status"
+      "additionalProperties": false
+    "AbsenceInput":
+      "type": "object"
+      "properties":
+        "kind":
+          "type": "string"
+          "enum":
+            - "day_off"
+            - "vacation"
+        "scope":
+          "type": "string"
+          "enum":
+            - "full_days"
+            - "partial_day"
+        "startDate":
+          "type": "string"
+          "format": "date"
+        "endDate":
+          "type": "string"
+          "format": "date"
+        "startTime":
+          "type":
+            - "string"
+            - "null"
+        "endTime":
+          "type":
+            - "string"
+            - "null"
+        "reason":
+          "type": "string"
+      "required":
+        - "kind"
+        - "scope"
+        - "startDate"
+        - "endDate"
+      "additionalProperties": false
+    "AbsenceDecision":
+      "type": "object"
+      "properties":
+        "expectedCapacityRevision":
+          "type": "integer"
+        "acknowledgedBookingIds":
+          "type": "array"
+          "items":
+            "type": "string"
+            "format": "uuid"
+        "reason":
+          "type": "string"
+      "required":
+        - "expectedCapacityRevision"
+      "additionalProperties": false
+    "AttentionItem":
+      "type": "object"
+      "properties":
+        "bookingId":
+          "type":
+            - "string"
+            - "null"
+          "format": "uuid"
+        "code":
+          "type": "string"
+        "severity":
+          "type": "string"
+          "enum":
+            - "info"
+            - "warning"
+            - "critical"
+        "hint":
+          "type": "string"
+      "required":
+        - "code"
+        - "severity"
+        - "hint"
+      "additionalProperties": false
+    "AttentionResult":
+      "type": "object"
+      "properties":
+        "capacityRevision":
+          "type": "integer"
+        "items":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/AttentionItem"
+      "required":
+        - "capacityRevision"
+        - "items"
+      "additionalProperties": false
+    "SpecialistBooking":
+      "type": "object"
+      "properties":
+        "id":
+          "type": "string"
+          "format": "uuid"
+        "clientName":
+          "type": "string"
+        "serviceName":
+          "type": "string"
+        "date":
+          "type": "string"
+          "format": "date"
+        "time":
+          "type": "string"
+        "durationMinutes":
+          "type": "integer"
+        "status":
+          "type": "string"
+          "enum":
+            - "pending_confirmation"
+            - "confirmed"
+            - "completed"
+        "roomName":
+          "type": "string"
+      "required":
+        - "id"
+        - "clientName"
+        - "serviceName"
+        - "date"
+        - "time"
+        - "status"
+      "additionalProperties": false
+    "SpecialistBookingList":
+      "type": "object"
+      "properties":
+        "items":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/SpecialistBooking"
+        "nextCursor":
+          "type":
+            - "string"
+            - "null"
+      "required":
+        - "items"
+        - "nextCursor"
+      "additionalProperties": false
+    "SpecialistList":
+      "type": "object"
+      "properties":
+        "items":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/Specialist"
+        "nextCursor":
+          "type":
+            - "string"
+            - "null"
+      "required":
+        - "items"
+        - "nextCursor"
+      "additionalProperties": false
+    "RoomList":
+      "type": "object"
+      "properties":
+        "items":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/Room"
+        "nextCursor":
+          "type":
+            - "string"
+            - "null"
+      "required":
+        - "items"
+        - "nextCursor"
+      "additionalProperties": false
+    "AbsenceList":
+      "type": "object"
+      "properties":
+        "items":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/AbsenceRequest"
+        "nextCursor":
+          "type":
+            - "string"
+            - "null"
+      "required":
+        - "items"
+        - "nextCursor"
+      "additionalProperties": false
+    "AssignmentEvent":
+      "type": "object"
+      "properties":
+        "id":
+          "type": "string"
+          "format": "uuid"
+        "bookingId":
+          "type": "string"
+          "format": "uuid"
+        "fromSpecialistId":
+          "type":
+            - "string"
+            - "null"
+          "format": "uuid"
+        "toSpecialistId":
+          "type":
+            - "string"
+            - "null"
+          "format": "uuid"
+        "fromRoomId":
+          "type":
+            - "string"
+            - "null"
+          "format": "uuid"
+        "toRoomId":
+          "type":
+            - "string"
+            - "null"
+          "format": "uuid"
+        "at":
+          "type": "string"
+          "format": "date-time"
+      "required":
+        - "id"
+        - "bookingId"
+        - "at"
+      "additionalProperties": false
+    "AssignmentEvents":
+      "type": "object"
+      "properties":
+        "items":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/AssignmentEvent"
+        "nextCursor":
+          "type":
+            - "string"
+            - "null"
+      "required":
+        - "items"
+        - "nextCursor"
+      "additionalProperties": false
+    "SimpleMessage":
+      "type": "object"
+      "properties":
+        "success":
+          "type": "boolean"
+      "required":
+        - "success"
+      "additionalProperties": false
