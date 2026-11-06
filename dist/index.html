@@ -1,28 +1,261 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f7f3eb"><title>Форма тела — массажный кабинет</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="admin.css"><link rel="stylesheet" href="workspace.css"><link rel="stylesheet" href="calendar-event.css"></head><body>
-<dialog id="PagePreloader" aria-label="Форма тела">
-  <div class="splash-content">
-    <div class="splash-art"><img class="splash-static" src="assets/brand/logos/logo-03.svg" alt="" width="400" height="400"></div>
-    <span>Форма тела</span>
-  </div>
-</dialog>
-<script src="config.js"></script><script src="js/demo-data.js"></script><script src="js/demo-api.js"></script><script src="preloader.js"></script>
-<div id="visitor"><header><a class="brand" href="#top"><img class="brand-symbol" src="assets/brand/logos/logo-01.svg" alt="" width="400" height="400">Форма тела</a><nav><a href="#booking">Онлайн-запись</a><a href="#services">Услуги</a><a href="#about">О кабинете</a></nav><a class="navcta" href="#booking">Записаться <span>↗</span></a></header>
-<main id="top"><section class="hero"><div class="herotext"><div class="eyebrow">МАССАЖНЫЙ КАБИНЕТ</div><h1>Искусство<br><i>прикосновения</i></h1><p>Индивидуальный массаж для тех, кто хочет<br>замедлиться и почувствовать своё тело.</p><a class="btn" href="#booking">Выбрать сеанс <span>↗</span></a></div><img class="hero-symbol" src="assets/brand/logos/logo-02.svg" alt="" width="400" height="400"></section>
-<section class="book wrap" id="booking"><div class="sectionhead"><img class="booking-symbol" src="assets/brand/logos/logo-05.svg" alt="" width="400" height="400" loading="lazy"><div class="eyebrow">ОНЛАЙН-ЗАПИСЬ</div><h2>Время для себя</h2><p>Выберите услугу, удобную дату и время сеанса.</p></div>
-<div class="panel"><div class="col"><h3><small>01</small> Выберите услугу</h3><div id="options"></div></div><div class="col"><h3><small>02</small> Выберите дату</h3><div class="month"><strong id="month"></strong><div><button id="prev" aria-label="Предыдущий месяц">‹</button> <button id="next" aria-label="Следующий месяц">›</button></div></div><div class="grid" id="days"></div></div><div class="col"><h3><small>03</small> Выберите время</h3><div class="sub" id="daylabel"></div><div id="times"></div><button class="btn wide" id="book">Забронировать <span>↗</span></button><p class="note">Демозапись сохраняется в этом браузере.</p><div id="status" role="status"></div></div></div></section>
-<section id="services" class="wrap lower"><div class="eyebrow">УСЛУГИ</div><h2>Виды массажа</h2><div id="serviceList"></div></section><section id="about" class="wrap lower about"><img class="about-symbol" src="assets/brand/logos/logo-03.svg" alt="" width="400" height="400" loading="lazy"><div><div class="eyebrow">О КАБИНЕТЕ</div><h2>Форма тела</h2><p>В основе нашего подхода — внимание к ощущениям. Перед сеансом мы обсуждаем, каким зонам уделить больше времени и какой темп и сила прикосновения вам комфортны.</p></div></section></main><footer class="wrap"><span class="footer-brand"><img class="footer-symbol" src="assets/brand/logos/logo-01.svg" alt="" width="400" height="400" loading="lazy">Форма тела</span> <button id="adminOpen" hidden>Панель администратора</button> <a href="#top">Наверх ↑</a></footer><p id="storageNote" role="status" class="wrap" hidden></p>
-</div><section hidden id="admin" aria-labelledby="adminTitle"><div class="admin-shell">
-<header class="admin-head"><img src="assets/brand/logos/logo-01.svg" width="28" height="28" alt=""><div class="admin-identity"><h2 id="adminTitle">FORMA TELA</h2><span>Управление кабинетом</span></div><span class="demo-label">Демо</span></header>
-<div class="admin-layout"><aside aria-label="Разделы панели" id="adminNav"></aside><section class="admin-body"><h3 tabindex="-1" id="adminSection"></h3><div id="adminPage"></div></section></div>
-<div class="admin-foot"><strong role="status" id="adminMsg"></strong><button type="button" id="adminClose" class="admin-action">Пользовательский интерфейс</button></div></div></section>
-<dialog id="request" aria-labelledby="requestTitle">
-<button id="requestClose" type="button" aria-label="Закрыть">×</button>
-<h2 id="requestTitle">Оформление записи</h2><div id="requestDetails"></div>
-<form id="requestForm" novalidate>
-<label>Фамилия и имя<input name="fullName" required maxlength="120" autocomplete="name" placeholder="Иванов Иван" aria-describedby="nameError"></label><small id="nameError" role="alert"></small>
-<label>Номер телефона<input name="phone" required type="tel" inputmode="tel" autocomplete="tel" value="+7" aria-describedby="phoneError"></label><small id="phoneError" role="alert"></small>
-<label class="consent"><input name="consent" type="checkbox" required>Согласен на сохранение имени и телефона в этом браузере для демонстрации записи.</label>
-<p class="note">Используйте тестовые данные. Демо не передаёт заявку специалисту и не совершает звонков.</p>
-<p role="alert" id="requestError"></p><div class="request-actions"><button class="btn" type="submit">Оставить заявку</button><button type="button" id="requestCancel">Отмена</button></div></form>
-<div hidden id="requestResult"></div></dialog>
-<script src="app.js"></script><script src="js/qr.js"></script><script src="js/calendar-event.js"></script><script src="js/booking-form.js"></script><script src="js/planner.js"></script><script src="js/draft-store.js"></script><script src="js/admin.js"></script></body></html>
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f7f3eb">
+    <title>Форма тела — массажный кабинет</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="workspace.css">
+    <link rel="stylesheet" href="calendar-event.css">
+  </head>
+  <body>
+    <dialog id="PagePreloader" aria-label="Форма тела">
+      <div class="splash-content">
+        <div class="splash-art">
+          <img
+            class="splash-static"
+            src="assets/brand/logos/logo-03.svg"
+            alt=""
+            width="400"
+            height="400"
+          >
+        </div>
+        <span>Форма тела</span>
+      </div>
+    </dialog>
+
+    <script src="config.js"></script>
+    <script src="js/demo-data.js"></script>
+    <script src="js/demo-api.js"></script>
+    <script src="preloader.js"></script>
+
+    <div id="visitor">
+      <header>
+        <a class="brand" href="#top">
+          <img
+            class="brand-symbol"
+            src="assets/brand/logos/logo-01.svg"
+            alt=""
+            width="400"
+            height="400"
+          >
+          Форма тела
+        </a>
+        <nav>
+          <a href="#booking">Онлайн-запись</a>
+          <a href="#services">Услуги</a>
+          <a href="#about">О кабинете</a>
+        </nav>
+        <a class="navcta" href="#booking">
+          Записаться <span>↗</span>
+        </a>
+      </header>
+
+      <main id="top">
+        <section class="hero">
+          <div class="herotext">
+            <div class="eyebrow">МАССАЖНЫЙ КАБИНЕТ</div>
+            <h1>Искусство<br><i>прикосновения</i></h1>
+            <p>
+              Индивидуальный массаж для тех, кто хочет<br>
+              замедлиться и почувствовать своё тело.
+            </p>
+            <a class="btn" href="#booking">
+              Выбрать сеанс <span>↗</span>
+            </a>
+          </div>
+          <img
+            class="hero-symbol"
+            src="assets/brand/logos/logo-02.svg"
+            alt=""
+            width="400"
+            height="400"
+          >
+        </section>
+
+        <section class="book wrap" id="booking">
+          <div class="sectionhead">
+            <img
+              class="booking-symbol"
+              src="assets/brand/logos/logo-05.svg"
+              alt=""
+              width="400"
+              height="400"
+              loading="lazy"
+            >
+            <div class="eyebrow">ОНЛАЙН-ЗАПИСЬ</div>
+            <h2>Время для себя</h2>
+            <p>Выберите услугу, удобную дату и время сеанса.</p>
+          </div>
+
+          <div class="panel">
+            <div class="col">
+              <h3><small>01</small> Выберите услугу</h3>
+              <div id="options"></div>
+            </div>
+            <div class="col">
+              <h3><small>02</small> Выберите дату</h3>
+              <div class="month">
+                <strong id="month"></strong>
+                <div>
+                  <button id="prev" aria-label="Предыдущий месяц">‹</button>
+                  <button id="next" aria-label="Следующий месяц">›</button>
+                </div>
+              </div>
+              <div class="grid" id="days"></div>
+            </div>
+            <div class="col">
+              <h3><small>03</small> Выберите время</h3>
+              <div class="sub" id="daylabel"></div>
+              <div id="times"></div>
+              <button class="btn wide" id="book">
+                Забронировать <span>↗</span>
+              </button>
+              <p class="note">Демозапись сохраняется в этом браузере.</p>
+              <div id="status" role="status"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="services" class="wrap lower">
+          <div class="eyebrow">УСЛУГИ</div>
+          <h2>Виды массажа</h2>
+          <div id="serviceList"></div>
+        </section>
+
+        <section id="about" class="wrap lower about">
+          <img
+            class="about-symbol"
+            src="assets/brand/logos/logo-03.svg"
+            alt=""
+            width="400"
+            height="400"
+            loading="lazy"
+          >
+          <div>
+            <div class="eyebrow">О КАБИНЕТЕ</div>
+            <h2>Форма тела</h2>
+            <p>
+              В основе нашего подхода — внимание к ощущениям. Перед сеансом
+              мы обсуждаем, каким зонам уделить больше времени и какой темп и
+              сила прикосновения вам комфортны.
+            </p>
+          </div>
+        </section>
+      </main>
+
+      <footer class="wrap">
+        <span class="footer-brand">
+          <img
+            class="footer-symbol"
+            src="assets/brand/logos/logo-01.svg"
+            alt=""
+            width="400"
+            height="400"
+            loading="lazy"
+          >
+          Форма тела
+        </span>
+        <button id="adminOpen" hidden>Панель администратора</button>
+        <a href="#top">Наверх ↑</a>
+      </footer>
+      <p id="storageNote" role="status" class="wrap" hidden></p>
+    </div>
+
+    <section hidden id="admin" aria-labelledby="adminTitle">
+      <div class="admin-shell">
+        <header class="admin-head">
+          <img
+            src="assets/brand/logos/logo-01.svg"
+            width="28"
+            height="28"
+            alt=""
+          >
+          <div class="admin-identity">
+            <h2 id="adminTitle">FORMA TELA</h2>
+            <span>Управление кабинетом</span>
+          </div>
+          <span class="demo-label">Демо</span>
+        </header>
+
+        <div class="admin-layout">
+          <aside aria-label="Разделы панели" id="adminNav"></aside>
+          <section class="admin-body">
+            <h3 tabindex="-1" id="adminSection"></h3>
+            <div id="adminPage"></div>
+          </section>
+        </div>
+
+        <div class="admin-foot">
+          <strong role="status" id="adminMsg"></strong>
+          <button type="button" id="adminClose" class="admin-action">
+            Пользовательский интерфейс
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <dialog id="request" aria-labelledby="requestTitle">
+      <button id="requestClose" type="button" aria-label="Закрыть">×</button>
+      <h2 id="requestTitle">Оформление записи</h2>
+      <div id="requestDetails"></div>
+
+      <form id="requestForm" novalidate>
+        <label>
+          Фамилия и имя
+          <input
+            name="fullName"
+            required
+            maxlength="120"
+            autocomplete="name"
+            placeholder="Иванов Иван"
+            aria-describedby="nameError"
+          >
+        </label>
+        <small id="nameError" role="alert"></small>
+
+        <label>
+          Номер телефона
+          <input
+            name="phone"
+            required
+            type="tel"
+            inputmode="tel"
+            autocomplete="tel"
+            value="+7"
+            aria-describedby="phoneError"
+          >
+        </label>
+        <small id="phoneError" role="alert"></small>
+
+        <label class="consent">
+          <input name="consent" type="checkbox" required>
+          Согласен на сохранение имени и телефона в этом браузере для
+          демонстрации записи.
+        </label>
+
+        <p class="note">
+          Используйте тестовые данные. Демо не передаёт заявку специалисту и
+          не совершает звонков.
+        </p>
+        <p role="alert" id="requestError"></p>
+        <div class="request-actions">
+          <button class="btn" type="submit">Оставить заявку</button>
+          <button type="button" id="requestCancel">Отмена</button>
+        </div>
+      </form>
+
+      <div hidden id="requestResult"></div>
+    </dialog>
+
+    <script src="app.js"></script>
+    <script src="js/qr.js"></script>
+    <script src="js/calendar-event.js"></script>
+    <script src="js/booking-form.js"></script>
+    <script src="js/planner.js"></script>
+    <script src="js/draft-store.js"></script>
+    <script src="js/admin.js"></script>
+  </body>
+</html>
