@@ -1,0 +1,14 @@
+.calendar-choice,.transfer-qr,.event-sheet{font:14px/1.5 Arial,sans-serif;color:#284b35}
+.calendar-choice{margin:12px 0}.calendar-choice summary{cursor:pointer;font-weight:600}
+.calendar-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.calendar-action{display:inline-flex;align-items:center;justify-content:center;max-width:100%;box-sizing:border-box;min-height:34px;padding:5px 12px;border:1px solid #d8c6a6;border-radius:8px;background:#f8f5ee;color:#284b35;font:13px/1.4 Arial,sans-serif;text-decoration:none;cursor:pointer}
+.calendar-action:focus-visible,.calendar-choice summary:focus-visible{outline:2px solid #284b35;outline-offset:2px}
+.calendar-note,.transfer-qr small{font-size:12px;color:#585f53}
+.transfer-qr{display:grid;grid-template-columns:minmax(120px,212px) minmax(0,1fr);gap:6px 12px;align-items:center;justify-items:start;margin:12px 0}
+.transfer-qr svg{grid-column:1;grid-row:1 / span 5;width:100%;height:auto;display:block}
+.transfer-qr :is(figcaption,button,small){grid-column:2}
+.transfer-qr input{max-width:100%}
+body:has(>.event-sheet){background:#f8f5ee;margin:0;padding:16px}
+.event-sheet{box-sizing:border-box;width:min(100%,500px);margin:10vh auto;padding:clamp(18px,5vw,40px);border:1px solid #d8c6a6;border-radius:14px;overflow-wrap:anywhere}
+.event-sheet h1{font:normal 28px Georgia,serif}.event-sheet .calendar-brand{letter-spacing:.12em;font-size:12px}
+@media(max-width:500px){.transfer-qr{grid-template-columns:minmax(0,1fr)}.transfer-qr svg{width:min(100%,260px);grid-row:auto}.transfer-qr :is(figcaption,button,small){grid-column:1}.calendar-action{min-height:44px}}

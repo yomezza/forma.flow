@@ -1,8 +1,30 @@
-# forma.flow
+# FORMA TELA frontend
 
-This repository is split by responsibility.
+Статический сайт массажного кабинета и демо-админка. Рабочая ветка frontend.
 
-- `frontend` contains the FORMA TELA static frontend and frontend documentation.
-- `main` is reserved for backend development.
+## Запуск
 
-The frontend branch is the source of truth for browser UI and the DemoAPI contract.
+Откройте `dist/index.html` через локальный статический сервер (например, Live Server). Сборка и установка зависимостей не нужны. Для публичного переноса календарного события сайт должен быть доступен по HTTPS.
+
+Исходники интерфейса находятся в `dist/`. Брендовая графика лежит в `dist/assets/brand/`, включая анимированный SVG и шесть логотипов.
+
+## Архитектура
+
+- `dist/app.js` — публичный сайт, выбор услуги, календарь и переходы.
+- `dist/js/demo-api.js` — адаптер `DemoAPI`, также опубликован как `SiteAPI`.
+- `dist/js/demo-data.js` — демонстрационные данные.
+- `dist/js/admin.js` и `dist/js/planner.js` — административное рабочее пространство и расписание.
+- `dist/js/booking-form.js` — оформление заявки и подтверждающий экран.
+- `dist/js/draft-store.js` — временные несохранённые формы в рамках вкладки.
+- `dist/js/calendar-event.js`, `qr.js` — экспорт календарного события и QR.
+- `dist/assets/brand/` — SVG-графика FORMA TELA.
+
+Подробные документы для backend-разработчика: [DemoAPI](docs/DEMO_API.md) и [визуальная система](docs/DESIGN_SYSTEM.md).
+
+## Демо-ограничение
+
+Данные хранятся в localStorage отдельного браузера и устройства. Это не общая база, серверная авторизация или защищённая CRM. Для пробных форм используйте тестовые контакты.
+
+## Разделение веток
+
+`frontend` — сайт, SVG-ассеты и frontend-документация. `main` оставлена для backend-разработки. Backend-реализация должна сохранить контракт из [docs/DEMO_API.md](docs/DEMO_API.md), заменив localStorage реализацией на сервере.
