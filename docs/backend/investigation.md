@@ -29,3 +29,5 @@ Partially implemented / deviations:
 11. Advanced mode does not honor vacation entries, because effective() uses vacations only for simple; preserve until explicit product decision.
 
 Planned, not implemented: Go backend, PostgreSQL database, admin sessions, cross-device consistency, API idempotency, durable audit, operational backups. See api-mapping.md for the complete inventory and classification.
+
+Additional verified code issue: getDateStates(a,b,id) tests (!id || !available(...).length) and therefore reports working dates as full when the optional service id is absent; frontend should correct the adapter semantics rather than copy this expression to Go.

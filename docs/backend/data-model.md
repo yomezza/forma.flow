@@ -5,7 +5,7 @@
 - resources: owner of schedule and booking exclusion; one primary resource in MVP, multiple later; IANA time_zone.
 - services: persistent text IDs compatible with classic/relax/back; BIGINT price_amount in whole RUB; is_active archives without deleting booking FK.
 - clients: unique normalized +7 telephone, admin editable name; booking snapshots keep original form name/phone; retaining history takes precedence over hard delete.
-- bookings: resource, service and client FKs, immutable service snapshots, local_date/local_time for UI, UTC timestamps for range checks, buffer_minutes snapshot and blocked_until, lifecycle status and timestamps.
+- bookings: resource, service and client FKs, immutable service snapshots, local_date/local_time for UI, UTC timestamps for range checks, buffer_minutes snapshot and blocked_until, consent_version and consent_at for auditable form submission, lifecycle status and timestamps.
 - simple_schedule, simple_blocked_dates, vacations: weekly rules, date exceptions, inclusive vacation ranges; exclusively applied in simple mode in MVP.
 - schedule_state: active mode and monotonically increasing revision; locked with FOR UPDATE for all schedule writes and booking policy reads.
 - schedule_days (draft/published) and schedule_intervals: dated advanced rules, several intervals; absence of published rule => unplanned.

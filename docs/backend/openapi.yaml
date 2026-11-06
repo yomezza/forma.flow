@@ -950,7 +950,7 @@
           "adminCookie": []
       "parameters":
         -
-          "$ref": "#/components/parameters/Date"
+          "$ref": "#/components/parameters/DateFilter"
         -
           "$ref": "#/components/parameters/Status"
         -
@@ -2009,6 +2009,8 @@
           "$ref": "#/components/parameters/VacationId"
         -
           "$ref": "#/components/parameters/Csrf"
+        -
+          "$ref": "#/components/parameters/IfMatch"
       "responses":
         "204":
           "description": "Completed; no content"
@@ -3203,7 +3205,7 @@
         "content":
           "application/json":
             "schema":
-              "$ref": "#/components/schemas/RangeRequest"
+              "$ref": "#/components/schemas/RevisionOnly"
       "responses":
         "200":
           "description": "Successful response"
@@ -3469,6 +3471,13 @@
       "schema":
         "type": "string"
         "format": "date"
+    "DateFilter":
+      "name": "date"
+      "in": "query"
+      "required": false
+      "schema":
+        "type": "string"
+        "format": "date"
     "ServiceQuery":
       "name": "serviceId"
       "in": "query"
@@ -3537,6 +3546,13 @@
         "type": "string"
         "minLength": 16
         "maxLength": 128
+    "IfMatch":
+      "name": "If-Match"
+      "in": "header"
+      "required": true
+      "description": "Expected schedule revision as decimal integer"
+      "schema":
+        "type": "string"
     "Csrf":
       "name": "X-CSRF-Token"
       "in": "header"
@@ -3731,7 +3747,7 @@
         - "date"
         - "time"
         - "status"
-      "additionalProperties": false
+      "additionalProperties": true
     "Booking":
       "type": "object"
       "allOf":
@@ -3769,7 +3785,7 @@
             - "clientPhone"
             - "createdAt"
             - "updatedAt"
-          "additionalProperties": false
+          "additionalProperties": true
     "Client":
       "type": "object"
       "properties":
@@ -4056,6 +4072,14 @@
         - "changed"
         - "conflicts"
         - "revision"
+      "additionalProperties": false
+    "RevisionOnly":
+      "type": "object"
+      "properties":
+        "expectedRevision":
+          "type": "integer"
+      "required":
+        - "expectedRevision"
       "additionalProperties": false
     "RangeRequest":
       "type": "object"

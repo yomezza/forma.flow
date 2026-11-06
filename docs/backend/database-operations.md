@@ -11,7 +11,7 @@
 7. INSERT booking_events initial row. UPDATE idempotency_keys SET booking_id=$booking WHERE scope='booking' AND key=$key; COMMIT.
 8. Return 201, or 200 and same booking for exact idempotent replay. If client supplies a different payload under same key => 409.
 
-Important: even after the SELECT slot check, another request can insert before us. EXCLUDE guarantees only one commit. Never use sync.Mutex for distributed correctness. Use consistent lock order schedule_state -> idempotency -> clients -> bookings to avoid deadlocks: first lock schedule_state FOR SHARE, then reserve idempotency key. Multiple FOR SHARE holders can proceed together; exclusion prevents double booking. Writers of schedule_state acquire FOR UPDATE.
+Important: even after the SELECT slot check, another request can insert before us. EXCLUDE guarantees only one commit. Never use sync.Mutex for distributed correctness. Use consistent lock order idempotency -> schedule_state -> clients -> bookings to avoid deadlocks: first lock schedule_state FOR SHARE, then reserve idempotency key. Multiple FOR SHARE holders can proceed together; exclusion prevents double booking. Writers of schedule_state acquire FOR UPDATE.
 
 ## Schedule publication
 
