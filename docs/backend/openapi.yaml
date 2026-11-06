@@ -1,0 +1,4508 @@
+# FORMA TELA OpenAPI 3.1 — design contract, not a deployed server
+"openapi": "3.1.0"
+"info":
+  "title": "FORMA TELA Go Backend API"
+  "version": "0.1.0"
+  "description": "Design-stage contract. Prefix /api/v1. Requires auth for all admin paths; do not expose demo resets/import."
+"servers":
+  -
+    "url": "/"
+"tags":
+  -
+    "name": "Public"
+  -
+    "name": "Authentication"
+  -
+    "name": "Admin"
+  -
+    "name": "Schedule"
+"paths":
+  "/api/v1/services":
+    "get":
+      "tags":
+        - "Public"
+      "operationId": "listServices"
+      "summary": "Public active services"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ServicesPage"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/services/{id}":
+    "get":
+      "tags":
+        - "Public"
+      "operationId": "getService"
+      "summary": "Read service"
+      "parameters":
+        -
+          "$ref": "#/components/parameters/ServiceId"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Service"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/availability/dates":
+    "get":
+      "tags":
+        - "Public"
+      "operationId": "getDateStates"
+      "summary": "Published date availability, max 62 days"
+      "parameters":
+        -
+          "$ref": "#/components/parameters/From"
+        -
+          "$ref": "#/components/parameters/To"
+        -
+          "$ref": "#/components/parameters/ServiceQuery"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/DateStates"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/availability/slots":
+    "get":
+      "tags":
+        - "Public"
+      "operationId": "getSlots"
+      "summary": "Available HH:mm in cabinet timezone"
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Date"
+        -
+          "$ref": "#/components/parameters/ServiceRequired"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Slots"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/booking-requests":
+    "post":
+      "tags":
+        - "Public"
+      "operationId": "createBookingRequest"
+      "summary": "Reserve a pending request atomically; replay returns 200 with same receipt"
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Idempotency"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/BookingRequest"
+            "example":
+              "serviceId": "classic"
+              "date": "2026-11-10"
+              "time": "11:00"
+              "fullName": "Иванов Иван"
+              "phone": "+79991234567"
+              "consentAccepted": true
+              "consentVersion": "v1"
+      "responses":
+        "200":
+          "description": "Idempotent replay of identical body/key"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/BookingReceipt"
+        "201":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/BookingReceipt"
+              "example":
+                "id": "ded1c777-2445-47b1-bbd3-33b74294ad07"
+                "serviceId": "classic"
+                "name": "Классический массаж"
+                "durationMinutes": 60
+                "priceAmount": 3500
+                "currency": "RUB"
+                "date": "2026-11-10"
+                "time": "11:00"
+                "status": "pending_confirmation"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/site/settings":
+    "get":
+      "tags":
+        - "Public"
+      "operationId": "getPublicSiteSettings"
+      "summary": "Public visual and calendar event settings"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/SiteSettings"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/site/content":
+    "get":
+      "tags":
+        - "Public"
+      "operationId": "getPublicSiteContent"
+      "summary": "Public site copy"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/SiteContent"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/sessions":
+    "post":
+      "tags":
+        - "Authentication"
+      "operationId": "loginAdmin"
+      "summary": "Create secure admin session"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/LoginInput"
+      "responses":
+        "201":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Session"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Invalid credentials"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/sessions/current":
+    "get":
+      "tags":
+        - "Authentication"
+      "operationId": "getCurrentSession"
+      "summary": "Current administrator"
+      "security":
+        -
+          "adminCookie": []
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Session"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+    "delete":
+      "tags":
+        - "Authentication"
+      "operationId": "logoutAdmin"
+      "summary": "Revoke session"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "204":
+          "description": "Completed; no content"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/dashboard":
+    "get":
+      "tags":
+        - "Admin"
+      "operationId": "getDashboard"
+      "summary": "Admin counters and upcoming bookings"
+      "security":
+        -
+          "adminCookie": []
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Dashboard"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/services":
+    "get":
+      "tags":
+        - "Admin"
+      "operationId": "adminListServices"
+      "summary": "Full service catalog"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Cursor"
+        -
+          "$ref": "#/components/parameters/Limit"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ServicesPage"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+    "post":
+      "tags":
+        - "Admin"
+      "operationId": "adminCreateService"
+      "summary": "Create service"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/ServiceInput"
+      "responses":
+        "201":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Service"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/services/{id}":
+    "patch":
+      "tags":
+        - "Admin"
+      "operationId": "adminUpdateService"
+      "summary": "Modify service"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/ServiceId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/ServicePatch"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Service"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+    "delete":
+      "tags":
+        - "Admin"
+      "operationId": "adminArchiveService"
+      "summary": "Archive service; historical bookings retained"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/ServiceId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "204":
+          "description": "Completed; no content"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/bookings":
+    "get":
+      "tags":
+        - "Admin"
+      "operationId": "adminListBookings"
+      "summary": "Filtered paginated bookings"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Date"
+        -
+          "$ref": "#/components/parameters/Status"
+        -
+          "$ref": "#/components/parameters/Cursor"
+        -
+          "$ref": "#/components/parameters/Limit"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/BookingsPage"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/bookings/{id}/confirm":
+    "post":
+      "tags":
+        - "Admin"
+      "operationId": "adminConfirmBooking"
+      "summary": "confirm booking with lifecycle validation"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/BookingId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Booking"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/bookings/{id}/cancel":
+    "post":
+      "tags":
+        - "Admin"
+      "operationId": "adminCancelBooking"
+      "summary": "cancel booking with lifecycle validation"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/BookingId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/StatusNote"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Booking"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/bookings/{id}/complete":
+    "post":
+      "tags":
+        - "Admin"
+      "operationId": "adminCompleteBooking"
+      "summary": "complete booking with lifecycle validation"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/BookingId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Booking"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/bookings/{id}/restore":
+    "post":
+      "tags":
+        - "Admin"
+      "operationId": "adminRestoreBooking"
+      "summary": "restore booking with lifecycle validation"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/BookingId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Booking"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/schedule/warnings":
+    "get":
+      "tags":
+        - "Schedule"
+      "operationId": "getBookingWarnings"
+      "summary": "IDs of active bookings outside published schedule"
+      "security":
+        -
+          "adminCookie": []
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/BookingIDs"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/clients":
+    "get":
+      "tags":
+        - "Admin"
+      "operationId": "adminListClients"
+      "summary": "Clients, paginated"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Cursor"
+        -
+          "$ref": "#/components/parameters/Limit"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ClientsPage"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+    "post":
+      "tags":
+        - "Admin"
+      "operationId": "adminCreateClient"
+      "summary": "Create client"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/ClientInput"
+      "responses":
+        "201":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Client"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/clients/by-phone":
+    "get":
+      "tags":
+        - "Admin"
+      "operationId": "adminFindClientByPhone"
+      "summary": "Exact normalized phone lookup"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Phone"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Client"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/clients/{id}":
+    "get":
+      "tags":
+        - "Admin"
+      "operationId": "adminGetClient"
+      "summary": "Client detail"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/ClientId"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Client"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+    "patch":
+      "tags":
+        - "Admin"
+      "operationId": "adminUpdateClient"
+      "summary": "Update client without changing old booking snapshots"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/ClientId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/ClientPatch"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Client"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/clients/{id}/bookings":
+    "get":
+      "tags":
+        - "Admin"
+      "operationId": "adminClientBookings"
+      "summary": "Client history, including cancelled"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/ClientId"
+        -
+          "$ref": "#/components/parameters/Cursor"
+        -
+          "$ref": "#/components/parameters/Limit"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/BookingsPage"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/vacations":
+    "get":
+      "tags":
+        - "Admin"
+      "operationId": "adminListVacations"
+      "summary": "Simple-mode vacations and date lookup"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Contains"
+        -
+          "$ref": "#/components/parameters/Cursor"
+        -
+          "$ref": "#/components/parameters/Limit"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/VacationsPage"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+    "post":
+      "tags":
+        - "Admin"
+      "operationId": "adminCreateVacation"
+      "summary": "Vacation with conflict acknowledgement"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/VacationInput"
+      "responses":
+        "201":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Vacation"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/vacations/{id}":
+    "patch":
+      "tags":
+        - "Admin"
+      "operationId": "adminUpdateVacation"
+      "summary": "Change vacation"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/VacationId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/VacationPatch"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Vacation"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+    "delete":
+      "tags":
+        - "Admin"
+      "operationId": "adminDeleteVacation"
+      "summary": "Delete vacation and bump revision"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/VacationId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "204":
+          "description": "Completed; no content"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/settings":
+    "get":
+      "tags":
+        - "Admin"
+      "operationId": "adminGetSettings"
+      "summary": "Administrative visual settings"
+      "security":
+        -
+          "adminCookie": []
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/SiteSettings"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+    "patch":
+      "tags":
+        - "Admin"
+      "operationId": "adminUpdateSettings"
+      "summary": "Update appearance and calendar metadata"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/SiteSettings"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/SiteSettings"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/schedule/simple":
+    "get":
+      "tags":
+        - "Schedule"
+      "operationId": "adminGetSimpleSchedule"
+      "summary": "Simple weekly settings"
+      "security":
+        -
+          "adminCookie": []
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/SimpleSchedule"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+    "put":
+      "tags":
+        - "Schedule"
+      "operationId": "adminSetSimpleSchedule"
+      "summary": "Update simple weekly settings"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/SimpleScheduleInput"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/SimpleSchedule"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/schedule/mode":
+    "get":
+      "tags":
+        - "Schedule"
+      "operationId": "adminGetScheduleMode"
+      "summary": "Current active schedule mode and revision"
+      "security":
+        -
+          "adminCookie": []
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ScheduleMode"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+    "put":
+      "tags":
+        - "Schedule"
+      "operationId": "adminSetScheduleMode"
+      "summary": "Switch schedule mode, optimistic revision check"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/ScheduleModeChange"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ScheduleMode"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/schedule/mode/preview":
+    "post":
+      "tags":
+        - "Schedule"
+      "operationId": "adminPreviewModeChange"
+      "summary": "Estimate effect of mode switch"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/ModePreviewRequest"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ModePreview"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/schedule/days":
+    "get":
+      "tags":
+        - "Schedule"
+      "operationId": "adminListScheduleDays"
+      "summary": "Published or draft day rules for range"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/From"
+        -
+          "$ref": "#/components/parameters/To"
+        -
+          "$ref": "#/components/parameters/Stage"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ScheduleDays"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/schedule/days/{date}":
+    "get":
+      "tags":
+        - "Schedule"
+      "operationId": "adminGetScheduleDay"
+      "summary": "Active/draft/published day details"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/DatePath"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ScheduleDayView"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/schedule/drafts/{date}":
+    "put":
+      "tags":
+        - "Schedule"
+      "operationId": "adminSetDraftDay"
+      "summary": "Save or mark day as unplanned in draft"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/DatePath"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/DraftDayInput"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/RevisionResult"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/schedule/drafts/range":
+    "put":
+      "tags":
+        - "Schedule"
+      "operationId": "adminSetDraftRange"
+      "summary": "Save range or weekday template drafts"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/DraftRangeInput"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/RevisionResult"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/schedule/drafts/copy-simple":
+    "post":
+      "tags":
+        - "Schedule"
+      "operationId": "adminCopySimpleToDraft"
+      "summary": "Copy simple weekly rules to advanced draft"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/RangeRequest"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/RevisionResult"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/schedule/publications/preview":
+    "post":
+      "tags":
+        - "Schedule"
+      "operationId": "adminPreviewPublication"
+      "summary": "Preview conflicts and affected dates"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/RangeRequest"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/SchedulePreview"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/schedule/publications":
+    "post":
+      "tags":
+        - "Schedule"
+      "operationId": "adminPublishSchedule"
+      "summary": "Atomically publish selected draft range"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/PublishInput"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/RevisionResult"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/schedule/history":
+    "get":
+      "tags":
+        - "Schedule"
+      "operationId": "adminGetScheduleHistory"
+      "summary": "Durable history and versions"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Cursor"
+        -
+          "$ref": "#/components/parameters/Limit"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/HistoryPage"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/schedule/history/{id}/preview":
+    "post":
+      "tags":
+        - "Schedule"
+      "operationId": "adminPreviewRestore"
+      "summary": "Preview restoring historical before_state"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/HistoryId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/SchedulePreview"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/schedule/history/{id}/restore":
+    "post":
+      "tags":
+        - "Schedule"
+      "operationId": "adminRestoreVersionToDraft"
+      "summary": "Restore to draft, never publish automatically"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/HistoryId"
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/RangeRequest"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/RevisionResult"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/site/content":
+    "patch":
+      "tags":
+        - "Admin"
+      "operationId": "adminUpdateSiteContent"
+      "summary": "Edit public copy"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/SiteContent"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/SiteContent"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+  "/api/v1/admin/exports":
+    "post":
+      "tags":
+        - "Admin"
+      "operationId": "adminExportPII"
+      "summary": "Owner-only export; audited, no-store"
+      "security":
+        -
+          "adminCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ExportData"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-required-role": "owner"
+"components":
+  "securitySchemes":
+    "adminCookie":
+      "type": "apiKey"
+      "in": "cookie"
+      "name": "ft_session"
+  "parameters":
+    "ServiceId":
+      "name": "id"
+      "in": "path"
+      "required": true
+      "schema":
+        "type": "string"
+    "BookingId":
+      "name": "id"
+      "in": "path"
+      "required": true
+      "schema":
+        "type": "string"
+        "format": "uuid"
+    "ClientId":
+      "name": "id"
+      "in": "path"
+      "required": true
+      "schema":
+        "type": "string"
+        "format": "uuid"
+    "VacationId":
+      "name": "id"
+      "in": "path"
+      "required": true
+      "schema":
+        "type": "string"
+        "format": "uuid"
+    "HistoryId":
+      "name": "id"
+      "in": "path"
+      "required": true
+      "schema":
+        "type": "string"
+        "format": "uuid"
+    "DatePath":
+      "name": "date"
+      "in": "path"
+      "required": true
+      "schema":
+        "type": "string"
+        "format": "date"
+    "From":
+      "name": "from"
+      "in": "query"
+      "required": true
+      "schema":
+        "type": "string"
+        "format": "date"
+    "To":
+      "name": "to"
+      "in": "query"
+      "required": true
+      "schema":
+        "type": "string"
+        "format": "date"
+    "Date":
+      "name": "date"
+      "in": "query"
+      "required": true
+      "schema":
+        "type": "string"
+        "format": "date"
+    "ServiceQuery":
+      "name": "serviceId"
+      "in": "query"
+      "required": false
+      "schema":
+        "type": "string"
+    "ServiceRequired":
+      "name": "serviceId"
+      "in": "query"
+      "required": true
+      "schema":
+        "type": "string"
+    "Stage":
+      "name": "stage"
+      "in": "query"
+      "required": true
+      "schema":
+        "type": "string"
+        "enum":
+          - "draft"
+          - "published"
+    "Status":
+      "name": "status"
+      "in": "query"
+      "required": false
+      "schema":
+        "type": "string"
+        "enum":
+          - "pending_confirmation"
+          - "confirmed"
+          - "completed"
+          - "cancelled"
+    "Cursor":
+      "name": "cursor"
+      "in": "query"
+      "required": false
+      "schema":
+        "type": "string"
+    "Limit":
+      "name": "limit"
+      "in": "query"
+      "required": false
+      "schema":
+        "type": "integer"
+        "default": 25
+        "minimum": 1
+        "maximum": 100
+    "Phone":
+      "name": "phone"
+      "in": "query"
+      "required": true
+      "schema":
+        "type": "string"
+    "Contains":
+      "name": "contains"
+      "in": "query"
+      "required": false
+      "schema":
+        "type": "string"
+        "format": "date"
+    "Idempotency":
+      "name": "Idempotency-Key"
+      "in": "header"
+      "required": true
+      "schema":
+        "type": "string"
+        "minLength": 16
+        "maxLength": 128
+    "Csrf":
+      "name": "X-CSRF-Token"
+      "in": "header"
+      "required": true
+      "schema":
+        "type": "string"
+  "schemas":
+    "ErrorEnvelope":
+      "type": "object"
+      "properties":
+        "error":
+          "type": "object"
+          "properties":
+            "code":
+              "type": "string"
+            "message":
+              "type": "string"
+            "details":
+              "type": "object"
+              "additionalProperties": true
+            "requestId":
+              "type": "string"
+          "required":
+            - "code"
+            - "message"
+          "additionalProperties": false
+      "required":
+        - "error"
+      "additionalProperties": false
+    "Service":
+      "type": "object"
+      "properties":
+        "id":
+          "type": "string"
+        "name":
+          "type": "string"
+        "description":
+          "type": "string"
+        "durationMinutes":
+          "type": "integer"
+          "minimum": 1
+          "maximum": 1440
+        "priceAmount":
+          "type": "integer"
+          "format": "int64"
+          "minimum": 0
+          "description": "Integer whole RUB in v1"
+        "currency":
+          "type": "string"
+          "pattern": "^[A-Z]{3}$"
+        "sortOrder":
+          "type": "integer"
+        "isActive":
+          "type": "boolean"
+        "visualSymbol":
+          "type": "string"
+      "required":
+        - "id"
+        - "name"
+        - "durationMinutes"
+        - "priceAmount"
+        - "currency"
+        - "isActive"
+      "additionalProperties": false
+    "ServiceInput":
+      "type": "object"
+      "properties":
+        "id":
+          "type": "string"
+          "description": "Optional on creation; server may generate stable slug"
+        "name":
+          "type": "string"
+        "description":
+          "type": "string"
+        "durationMinutes":
+          "type": "integer"
+          "minimum": 1
+          "maximum": 1440
+        "priceAmount":
+          "type": "integer"
+          "minimum": 0
+        "currency":
+          "type": "string"
+          "const": "RUB"
+        "sortOrder":
+          "type": "integer"
+        "isActive":
+          "type": "boolean"
+        "visualSymbol":
+          "type": "string"
+      "required":
+        - "name"
+        - "description"
+        - "durationMinutes"
+        - "priceAmount"
+        - "currency"
+        - "sortOrder"
+        - "isActive"
+        - "visualSymbol"
+      "additionalProperties": false
+    "ServicePatch":
+      "type": "object"
+      "minProperties": 1
+      "additionalProperties": false
+      "properties":
+        "name":
+          "type": "string"
+        "description":
+          "type": "string"
+        "durationMinutes":
+          "type": "integer"
+          "minimum": 1
+        "priceAmount":
+          "type": "integer"
+          "minimum": 0
+        "sortOrder":
+          "type": "integer"
+        "isActive":
+          "type": "boolean"
+        "visualSymbol":
+          "type": "string"
+    "BookingRequest":
+      "type": "object"
+      "properties":
+        "serviceId":
+          "type": "string"
+        "date":
+          "type": "string"
+          "format": "date"
+        "time":
+          "type": "string"
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        "fullName":
+          "type": "string"
+          "minLength": 3
+          "maxLength": 120
+        "phone":
+          "type": "string"
+          "pattern": "^\\+7[0-9]{10}$"
+        "consentAccepted":
+          "type": "boolean"
+          "const": true
+        "consentVersion":
+          "type": "string"
+          "minLength": 1
+      "required":
+        - "serviceId"
+        - "date"
+        - "time"
+        - "fullName"
+        - "phone"
+        - "consentAccepted"
+        - "consentVersion"
+      "additionalProperties": false
+    "BookingReceipt":
+      "type": "object"
+      "properties":
+        "id":
+          "type": "string"
+          "format": "uuid"
+        "serviceId":
+          "type": "string"
+        "name":
+          "type": "string"
+        "durationMinutes":
+          "type": "integer"
+        "priceAmount":
+          "type": "integer"
+          "format": "int64"
+        "currency":
+          "type": "string"
+        "date":
+          "type": "string"
+          "format": "date"
+        "time":
+          "type": "string"
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        "status":
+          "type": "string"
+          "enum":
+            - "pending_confirmation"
+            - "confirmed"
+            - "completed"
+            - "cancelled"
+      "required":
+        - "id"
+        - "serviceId"
+        - "name"
+        - "durationMinutes"
+        - "priceAmount"
+        - "currency"
+        - "date"
+        - "time"
+        - "status"
+      "additionalProperties": false
+    "Booking":
+      "type": "object"
+      "allOf":
+        -
+          "$ref": "#/components/schemas/BookingReceipt"
+        -
+          "type": "object"
+          "properties":
+            "clientId":
+              "type": "string"
+              "format": "uuid"
+            "clientName":
+              "type": "string"
+            "clientPhone":
+              "type": "string"
+            "createdAt":
+              "type": "string"
+              "format": "date-time"
+            "updatedAt":
+              "type": "string"
+              "format": "date-time"
+            "confirmedAt":
+              "type": "string"
+              "format": "date-time"
+            "cancelledAt":
+              "type": "string"
+              "format": "date-time"
+            "cancelNote":
+              "type": "string"
+            "outOfSchedule":
+              "type": "boolean"
+          "required":
+            - "clientId"
+            - "clientName"
+            - "clientPhone"
+            - "createdAt"
+            - "updatedAt"
+          "additionalProperties": false
+    "Client":
+      "type": "object"
+      "properties":
+        "id":
+          "type": "string"
+          "format": "uuid"
+        "fullName":
+          "type": "string"
+        "phoneNormalized":
+          "type": "string"
+        "createdAt":
+          "type": "string"
+          "format": "date-time"
+        "updatedAt":
+          "type": "string"
+          "format": "date-time"
+      "required":
+        - "id"
+        - "fullName"
+        - "phoneNormalized"
+        - "createdAt"
+        - "updatedAt"
+      "additionalProperties": false
+    "ClientInput":
+      "type": "object"
+      "properties":
+        "fullName":
+          "type": "string"
+          "minLength": 3
+          "maxLength": 120
+        "phone":
+          "type": "string"
+          "pattern": "^\\+7[0-9]{10}$"
+      "required":
+        - "fullName"
+        - "phone"
+      "additionalProperties": false
+    "ClientPatch":
+      "type": "object"
+      "properties":
+        "fullName":
+          "type": "string"
+        "phone":
+          "type": "string"
+      "required": []
+      "additionalProperties": false
+    "Vacation":
+      "type": "object"
+      "properties":
+        "id":
+          "type": "string"
+          "format": "uuid"
+        "startDate":
+          "type": "string"
+          "format": "date"
+        "endDate":
+          "type": "string"
+          "format": "date"
+      "required":
+        - "id"
+        - "startDate"
+        - "endDate"
+      "additionalProperties": false
+    "VacationInput":
+      "type": "object"
+      "properties":
+        "startDate":
+          "type": "string"
+          "format": "date"
+        "endDate":
+          "type": "string"
+          "format": "date"
+        "expectedRevision":
+          "type": "integer"
+          "format": "int64"
+        "acknowledgedBookingIds":
+          "type": "array"
+          "items":
+            "type": "string"
+            "format": "uuid"
+      "required":
+        - "startDate"
+        - "endDate"
+        - "expectedRevision"
+      "additionalProperties": false
+    "VacationPatch":
+      "type": "object"
+      "properties":
+        "startDate":
+          "type": "string"
+          "format": "date"
+        "endDate":
+          "type": "string"
+          "format": "date"
+        "expectedRevision":
+          "type": "integer"
+        "acknowledgedBookingIds":
+          "type": "array"
+          "items":
+            "type": "string"
+            "format": "uuid"
+      "required":
+        - "startDate"
+        - "endDate"
+        - "expectedRevision"
+      "additionalProperties": false
+    "Slots":
+      "type": "object"
+      "properties":
+        "date":
+          "type": "string"
+          "format": "date"
+        "serviceId":
+          "type": "string"
+        "slots":
+          "type": "array"
+          "items":
+            "type": "string"
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+      "required":
+        - "date"
+        - "serviceId"
+        - "slots"
+      "additionalProperties": false
+    "DateStates":
+      "type": "object"
+      "properties":
+        "states":
+          "type": "object"
+          "additionalProperties":
+            "type": "string"
+            "enum":
+              - "past"
+              - "working"
+              - "full"
+              - "off"
+              - "unplanned"
+              - "vacation"
+              - "blocked"
+      "required":
+        - "states"
+      "additionalProperties": false
+    "Interval":
+      "type": "object"
+      "properties":
+        "start":
+          "type": "string"
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        "end":
+          "type": "string"
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+      "required":
+        - "start"
+        - "end"
+      "additionalProperties": false
+    "DayRule":
+      "type": "object"
+      "properties":
+        "kind":
+          "type": "string"
+          "enum":
+            - "working"
+            - "off"
+            - "unplanned"
+        "intervals":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/Interval"
+        "stepOverride":
+          "type":
+            - "integer"
+            - "null"
+          "minimum": 1
+          "maximum": 1440
+      "required":
+        - "kind"
+        - "intervals"
+        - "stepOverride"
+      "additionalProperties": false
+    "ScheduleDayView":
+      "type": "object"
+      "properties":
+        "active":
+          "$ref": "#/components/schemas/DayRule"
+        "draft":
+          "oneOf":
+            -
+              "$ref": "#/components/schemas/DayRule"
+            -
+              "type": "null"
+        "published":
+          "oneOf":
+            -
+              "$ref": "#/components/schemas/DayRule"
+            -
+              "type": "null"
+        "revision":
+          "type": "integer"
+      "required":
+        - "active"
+        - "draft"
+        - "published"
+        - "revision"
+      "additionalProperties": false
+    "DayMap":
+      "type": "object"
+      "additionalProperties":
+        "$ref": "#/components/schemas/DayRule"
+    "ScheduleDays":
+      "type": "object"
+      "properties":
+        "days":
+          "$ref": "#/components/schemas/DayMap"
+        "revision":
+          "type": "integer"
+          "format": "int64"
+      "required":
+        - "days"
+        - "revision"
+      "additionalProperties": false
+    "ScheduleMode":
+      "type": "object"
+      "properties":
+        "mode":
+          "type": "string"
+          "enum":
+            - "simple"
+            - "advanced"
+        "revision":
+          "type": "integer"
+          "format": "int64"
+      "required":
+        - "mode"
+        - "revision"
+      "additionalProperties": false
+    "ScheduleModeChange":
+      "type": "object"
+      "properties":
+        "mode":
+          "type": "string"
+          "enum":
+            - "simple"
+            - "advanced"
+        "expectedRevision":
+          "type": "integer"
+        "acknowledgedBookingIds":
+          "type": "array"
+          "items":
+            "type": "string"
+            "format": "uuid"
+      "required":
+        - "mode"
+        - "expectedRevision"
+      "additionalProperties": false
+    "ModePreviewRequest":
+      "type": "object"
+      "properties":
+        "mode":
+          "type": "string"
+          "enum":
+            - "simple"
+            - "advanced"
+        "from":
+          "type": "string"
+          "format": "date"
+        "to":
+          "type": "string"
+          "format": "date"
+      "required":
+        - "mode"
+        - "from"
+        - "to"
+      "additionalProperties": false
+    "ModePreview":
+      "type": "object"
+      "properties":
+        "changed":
+          "type": "integer"
+        "conflicts":
+          "type": "integer"
+        "revision":
+          "type": "integer"
+      "required":
+        - "changed"
+        - "conflicts"
+        - "revision"
+      "additionalProperties": false
+    "RangeRequest":
+      "type": "object"
+      "properties":
+        "from":
+          "type": "string"
+          "format": "date"
+        "to":
+          "type": "string"
+          "format": "date"
+        "expectedRevision":
+          "type": "integer"
+      "required":
+        - "from"
+        - "to"
+        - "expectedRevision"
+      "additionalProperties": false
+    "DraftDayInput":
+      "type": "object"
+      "properties":
+        "rule":
+          "$ref": "#/components/schemas/DayRule"
+        "expectedRevision":
+          "type": "integer"
+      "required":
+        - "rule"
+        - "expectedRevision"
+      "additionalProperties": false
+    "DraftRangeInput":
+      "type": "object"
+      "properties":
+        "from":
+          "type": "string"
+          "format": "date"
+        "to":
+          "type": "string"
+          "format": "date"
+        "rule":
+          "$ref": "#/components/schemas/DayRule"
+        "week":
+          "type": "object"
+          "additionalProperties":
+            "$ref": "#/components/schemas/DayRule"
+        "expectedRevision":
+          "type": "integer"
+      "required":
+        - "from"
+        - "to"
+        - "expectedRevision"
+      "additionalProperties": false
+    "SchedulePreview":
+      "type": "object"
+      "properties":
+        "total":
+          "type": "integer"
+        "working":
+          "type": "integer"
+        "off":
+          "type": "integer"
+        "unavailable":
+          "type": "array"
+          "items":
+            "type": "string"
+            "format": "date"
+        "conflicts":
+          "type": "array"
+          "items":
+            "type": "object"
+            "properties":
+              "id":
+                "type": "string"
+                "format": "uuid"
+              "date":
+                "type": "string"
+                "format": "date"
+              "time":
+                "type": "string"
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+            "required":
+              - "id"
+              - "date"
+              - "time"
+            "additionalProperties": false
+        "revision":
+          "type": "integer"
+      "required":
+        - "total"
+        - "working"
+        - "off"
+        - "unavailable"
+        - "conflicts"
+        - "revision"
+      "additionalProperties": false
+    "PublishInput":
+      "type": "object"
+      "properties":
+        "from":
+          "type": "string"
+          "format": "date"
+        "to":
+          "type": "string"
+          "format": "date"
+        "expectedRevision":
+          "type": "integer"
+        "acknowledgedBookingIds":
+          "type": "array"
+          "items":
+            "type": "string"
+            "format": "uuid"
+      "required":
+        - "from"
+        - "to"
+        - "expectedRevision"
+      "additionalProperties": false
+    "RevisionResult":
+      "type": "object"
+      "properties":
+        "revision":
+          "type": "integer"
+          "format": "int64"
+      "required":
+        - "revision"
+      "additionalProperties": false
+    "HistoryEntry":
+      "type": "object"
+      "properties":
+        "id":
+          "type": "string"
+          "format": "uuid"
+        "revision":
+          "type": "integer"
+        "action":
+          "type": "string"
+        "at":
+          "type": "string"
+          "format": "date-time"
+        "before":
+          "type": "object"
+          "additionalProperties": true
+        "after":
+          "type": "object"
+          "additionalProperties": true
+      "required":
+        - "id"
+        - "revision"
+        - "action"
+        - "at"
+        - "before"
+        - "after"
+      "additionalProperties": false
+    "HistoryPage":
+      "type": "object"
+      "properties":
+        "items":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/HistoryEntry"
+        "nextCursor":
+          "type":
+            - "string"
+            - "null"
+      "required":
+        - "items"
+        - "nextCursor"
+      "additionalProperties": false
+    "SimpleSchedule":
+      "type": "object"
+      "properties":
+        "workDays":
+          "type": "array"
+          "items":
+            "type": "integer"
+            "minimum": 0
+            "maximum": 6
+        "start":
+          "type": "string"
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        "end":
+          "type": "string"
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        "step":
+          "type": "integer"
+          "minimum": 1
+          "maximum": 1440
+        "breakMinutes":
+          "type": "integer"
+          "minimum": 0
+          "maximum": 1440
+        "blockedDates":
+          "type": "array"
+          "items":
+            "type": "string"
+            "format": "date"
+        "revision":
+          "type": "integer"
+      "required":
+        - "workDays"
+        - "start"
+        - "end"
+        - "step"
+        - "breakMinutes"
+        - "blockedDates"
+        - "revision"
+      "additionalProperties": false
+    "SimpleScheduleInput":
+      "type": "object"
+      "properties":
+        "workDays":
+          "type": "array"
+          "items":
+            "type": "integer"
+            "minimum": 0
+            "maximum": 6
+        "start":
+          "type": "string"
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        "end":
+          "type": "string"
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        "step":
+          "type": "integer"
+          "minimum": 1
+          "maximum": 1440
+        "breakMinutes":
+          "type": "integer"
+          "minimum": 0
+          "maximum": 1440
+        "blockedDates":
+          "type": "array"
+          "items":
+            "type": "string"
+            "format": "date"
+        "expectedRevision":
+          "type": "integer"
+      "required":
+        - "workDays"
+        - "start"
+        - "end"
+        - "step"
+        - "breakMinutes"
+        - "blockedDates"
+        - "expectedRevision"
+      "additionalProperties": false
+    "SiteSettings":
+      "type": "object"
+      "properties":
+        "calendarTitle":
+          "type": "string"
+        "address":
+          "type": "string"
+        "timeZone":
+          "type": "string"
+        "palette":
+          "type": "object"
+          "properties":
+            "green":
+              "type": "string"
+            "sand":
+              "type": "string"
+            "paper":
+              "type": "string"
+            "gold":
+              "type": "string"
+          "required":
+            - "green"
+            - "sand"
+            - "paper"
+            - "gold"
+          "additionalProperties": false
+        "animations":
+          "type": "boolean"
+        "revealDuration":
+          "type": "integer"
+        "preloaderDuration":
+          "type": "integer"
+      "required":
+        - "calendarTitle"
+        - "address"
+        - "timeZone"
+        - "palette"
+        - "animations"
+        - "revealDuration"
+        - "preloaderDuration"
+      "additionalProperties": false
+    "SiteContent":
+      "type": "object"
+      "properties":
+        "headline":
+          "type": "string"
+        "subtitle":
+          "type": "string"
+        "servicesTitle":
+          "type": "string"
+        "about":
+          "type": "string"
+        "heroButton":
+          "type": "string"
+        "bookingButton":
+          "type": "string"
+      "required":
+        - "headline"
+        - "subtitle"
+        - "servicesTitle"
+        - "about"
+        - "heroButton"
+        - "bookingButton"
+      "additionalProperties": false
+    "LoginInput":
+      "type": "object"
+      "properties":
+        "email":
+          "type": "string"
+          "format": "email"
+        "password":
+          "type": "string"
+          "minLength": 8
+      "required":
+        - "email"
+        - "password"
+      "additionalProperties": false
+    "Session":
+      "type": "object"
+      "properties":
+        "adminId":
+          "type": "string"
+          "format": "uuid"
+        "role":
+          "type": "string"
+          "enum":
+            - "admin"
+            - "owner"
+        "expiresAt":
+          "type": "string"
+          "format": "date-time"
+        "csrfToken":
+          "type": "string"
+      "required":
+        - "adminId"
+        - "role"
+        - "expiresAt"
+        - "csrfToken"
+      "additionalProperties": false
+    "StatusNote":
+      "type": "object"
+      "properties":
+        "note":
+          "type": "string"
+          "maxLength": 500
+      "required": []
+      "additionalProperties": false
+    "BookingsPage":
+      "type": "object"
+      "properties":
+        "items":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/Booking"
+        "nextCursor":
+          "type":
+            - "string"
+            - "null"
+      "required":
+        - "items"
+        - "nextCursor"
+      "additionalProperties": false
+    "ClientsPage":
+      "type": "object"
+      "properties":
+        "items":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/Client"
+        "nextCursor":
+          "type":
+            - "string"
+            - "null"
+      "required":
+        - "items"
+        - "nextCursor"
+      "additionalProperties": false
+    "ServicesPage":
+      "type": "object"
+      "properties":
+        "items":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/Service"
+        "nextCursor":
+          "type":
+            - "string"
+            - "null"
+      "required":
+        - "items"
+        - "nextCursor"
+      "additionalProperties": false
+    "VacationsPage":
+      "type": "object"
+      "properties":
+        "items":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/Vacation"
+        "nextCursor":
+          "type":
+            - "string"
+            - "null"
+      "required":
+        - "items"
+        - "nextCursor"
+      "additionalProperties": false
+    "BookingIDs":
+      "type": "object"
+      "properties":
+        "bookingIds":
+          "type": "array"
+          "items":
+            "type": "string"
+            "format": "uuid"
+      "required":
+        - "bookingIds"
+      "additionalProperties": false
+    "Dashboard":
+      "type": "object"
+      "properties":
+        "pendingCount":
+          "type": "integer"
+        "todayCount":
+          "type": "integer"
+        "upcomingConfirmedCount":
+          "type": "integer"
+        "clientsCount":
+          "type": "integer"
+        "activeServicesCount":
+          "type": "integer"
+        "upcoming":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/Booking"
+      "required":
+        - "pendingCount"
+        - "todayCount"
+        - "upcomingConfirmedCount"
+        - "clientsCount"
+        - "activeServicesCount"
+        - "upcoming"
+      "additionalProperties": false
+    "ExportData":
+      "type": "object"
+      "description": "Owner-only JSON export, includes personal data; no-store"
+      "additionalProperties": true
