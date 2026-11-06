@@ -7,3 +7,6 @@ Evidence for correctness: after N concurrent create attempts for same occupied i
 A test run without PostgreSQL is insufficient for release because mutex-based fakes do not enforce GiST exclusion or transaction ordering.
 
 Shared-phone acceptance is mandatory: duplicate normalized client phones are legal, public pending bookings have client_id=NULL, administrative lookup returns all candidates, and explicit audited association is required before confirmation. See go-testing.md.
+
+
+Идея 01 добавляет отдельные обязательные уровни: чистый unit matcher на транзитивных компонентах, PostgreSQL многопроцессную блокировку студии для неназначенных заявок, два GiST exclusion на конкретные назначения, RBAC специалиста и персональные отсутствия, аудит завершения/отката. См. [go-testing.md](go-testing.md), [идея 01](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L15-L52).

@@ -47,3 +47,16 @@ A new request shows submitted name/telephone, remains reserved and unlinked (cli
 - [Existing calendar event exporter](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/calendar-event.js#L41-L85).
 
 These links open source in `frontend` but **this document only describes required future frontend work**; it does not change that branch.
+
+## Идея 01 — новый production HttpSiteAPI и интерфейсы
+
+Привести [DemoAPI-спецификацию идеи](features/01-specialists/demo-api-spec.md) к реальным HTTP handler из [OpenAPI](openapi.yaml). Изменения фронтенда отдельно, в другой ветке:
+
+- Публичная форма остаётся **без выбора специалиста**; вызывается тот же `createBookingRequest`, однако backend запускает joint capacity solver вместо сравнения по одному ресурсу.
+- Admin: список персонала/кабинетов, личная неделя сотрудника, назначение/переназначение, предупреждение о косвенно вытесненных неназначенных заявках и точное подтверждение конфликтов, очередь отсутствий, «Требуют внимания».
+- Specialist: отдельное рабочее пространство, роль в аккаунте, личные назначения (pending и confirmed в том числе), календарь, свои заявки на отсутствие и события переназначений, завершение/undo. Номер клиента никогда не приходит в ответах specialist.
+- Admin должен перестать вызывать старый `completeBooking`: переход в completed только из specialist-role, после окончания сеанса, отдельный endpoint.
+- `clientId` привязывается админом отдельно от `specialistId/roomId`; подтверждённая заявка без специалиста разрешена.
+- `expectedCapacityRevision` передавать после preview, 409 заставляет обновить картину, никаких автоматических повторов с изменившимся списком конфликтов.
+
+[Точные утверждённые правила](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L15-L52), [методы в REST](api-mapping.md).

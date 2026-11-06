@@ -12,9 +12,9 @@ The method-name links in all 57 numbered rows above lead **directly into the `fr
 |---|---|---|---|---|
 | 1 | [getServices()](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L291) | GET /services | Public.ListServices → catalog.ListActive | services SELECT active order |
 | 2 | [getServiceById(id)](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L292) | GET /services/{id} | Public.GetService → catalog.Get | services SELECT |
-| 3 | [getAvailableSlots(date,id)](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L297) | GET /availability/slots?date=&serviceId= | Public.AvailableSlots → schedule.Slots | services, schedule_state, simple_schedule/schedule_days/schedule_intervals, bookings |
+| 3 | [getAvailableSlots(date,id)](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L297) | GET /availability/slots?date=&serviceId= | Public.AvailableSlots → schedule.Slots | services, schedule_state, simple/advanced studio schedule, specialists, specialist_services, personal week/overrides, approved absences, rooms, bookings, capacity_exceptions; assignment.Solve |
 | 4 | [getDateStates(a,b,id)](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L253) | GET /availability/dates?from=&to=&serviceId= | Public.DateStates → schedule.DateStates | bulk read published schedule and bookings |
-| 5 | [createBookingRequest(data)](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L314) | POST /booking-requests | Public.CreateBooking → booking.CreateRequest | tx idempotency_keys, services, bookings (client_id=NULL), booking_events; admin later assigns |
+| 5 | [createBookingRequest(data)](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L314) | POST /booking-requests | Public.CreateBooking → booking.CreateRequest | tx idempotency_keys, schedule_state FOR UPDATE, joint assignment solver, services, bookings (client_id=NULL; specialist_id=NULL; room_id=NULL), booking_events; admin later assigns |
 | 6 | [createBooking(data)](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L298) | NO production endpoint | Demo-only direct confirmed booking | legacy confirmed-without-client is unsafe for public usage |
 
 ## Services (admin)
@@ -36,7 +36,7 @@ The method-name links in all 57 numbered rows above lead **directly into the `fr
 | 14 | [getBookingWarnings()](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L264) | GET /admin/schedule/warnings | Admin.BookingWarnings → schedule.Warnings | active bookings + published schedule |
 | 15 | [confirmBooking(id)](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L322) | POST /admin/bookings/{id}/confirm | Admin.ConfirmBooking → booking.Transition | tx bookings (requires linked client_id), booking_events, audit_log |
 | 16 | [cancelBooking(id,note)](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L323) | POST /admin/bookings/{id}/cancel | Admin.CancelBooking → booking.Transition | tx bookings, booking_events, audit_log |
-| 17 | [completeBooking(id)](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L324) | POST /admin/bookings/{id}/complete | Admin.CompleteBooking → booking.Transition | tx bookings, booking_events, audit_log |
+| 17 | [completeBooking(id)](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L324) | НЕ ПЕРЕНОСИТЬ: новая операция POST /specialist/me/bookings/{id}/complete | Specialist.CompleteOwn → booking.MarkCompleted | tx bookings, booking_completion_events, booking_events, audit_log; after ends_at, owner specialist only |
 | 18 | [restoreBooking(id)](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L325) | POST /admin/bookings/{id}/restore | Admin.RestoreBooking → booking.Restore | tx schedule_state, bookings EXCLUDE, booking_events |
 | 19 | [updateBooking(id,{status})](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L330) | ADAPTER DISPATCH to status actions above | Admin status dispatcher | no generic status overwrite |
 | 20 | [deleteBooking(id)](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L332) | NO production endpoint | Demo-only destructive delete | retain history, use cancel/anonymization |
@@ -107,3 +107,26 @@ Notes: list methods become paginated HTTP responses; current UI expects arrays, 
 | assignBookingClient(bookingId, {clientId} or {newClient}) | PUT /admin/bookings/{id}/client | Admin.AssignBookingClient → booking.AssignClient | tx bookings row lock, clients SELECT or INSERT, bookings.client_id UPDATE, audit_log INSERT |
 
 The old findClientByPhone(phone) returns only one client/null in the JavaScript demo. It must become **findClientsByPhone(phone) returning 0..N candidates** in the production administrator workflow, not a silent first result. Existing 57-row inventory still accurately describes current DemoAPI, not necessarily future method signatures. Public booking never creates or selects a client; administrator assignment is mandatory before confirmation. No separate contact-person entity.
+
+## Идея 01: расширение карты Go HTTP-handler → service → PostgreSQL
+
+Эти операции **новые**, поэтому не входят в старые 57 методов DemoAPI. Они определены в [OpenAPI](openapi.yaml); источник поведения — [идея 01](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L15-L52).
+
+| REST path / method | Go handler → service | Основные таблицы/транзакции |
+|---|---|---|
+| GET/POST /admin/specialists | Admin.Specialists → specialist.List/Create | specialists, specialist_services, staff_accounts |
+| GET/PATCH /admin/specialists/{id}; POST /archive | Admin.Specialist → specialist.Get/Update/Archive | specialists; capacity_revision, audit_log |
+| GET/PUT /admin/specialists/{id}/schedule | Admin.PersonalSchedule → specialist.Schedule | specialist_weekly_intervals, specialist_day_overrides, specialist_override_intervals; studio lock |
+| GET/POST /admin/rooms; PATCH /admin/rooms/{id} | Admin.Room → room.List/Create/Update | rooms, capacity_revision, capacity_exceptions |
+| GET /admin/bookings/{id}/assignment/candidates; POST /assignment/preview | Admin.AssignmentPreview → booking.PreviewAssignment | all eligible staff/room + active bookings; pure assignment solver |
+| PUT /admin/bookings/{id}/assignment | Admin.Assign → booking.Assign | schedule_state FOR UPDATE, bookings FOR UPDATE, EXCLUDE, assignment_events, capacity_exceptions, audit_log |
+| GET /admin/bookings/{id}/assignment/events | Admin.AssignmentEvents → booking.ListAssignmentHistory | booking_assignment_events |
+| GET /admin/attention | Admin.Attention → booking.Attention | bookings + absences + capacity_exceptions; computed causes |
+| GET /admin/absence-requests; POST /{id}/preview,/approve,/reject | Admin.Absence → absence.List/Preview/Review | absence_requests, studio lock for approval, warnings, audit |
+| GET /specialist/me/bookings | Specialist.MyBookings → booking.ListAssigned | bookings WHERE specialist_id=current; no phone in DTO |
+| GET /specialist/me/schedule | Specialist.MySchedule → specialist.ReadOwn | personal intervals, approved absences and assigned bookings |
+| GET/POST /specialist/me/absence-requests; POST /{id}/withdraw | Specialist.MyAbsences → absence.ListOwn/Submit/Withdraw | absence_requests, identity and status check |
+| GET /specialist/me/assignment-events | Specialist.MyAssignmentHistory → booking.ListOwnAssignmentEvents | booking_assignment_events filtered by former/current specialist |
+| POST /specialist/me/bookings/{id}/complete,/undo-completion | Specialist.Completion → booking.CompleteOwn/UndoOwn | bookings row lock, booking_completion_events, booking_events, audit_log |
+
+`completeBooking` из старого frontend — источник для анализа **устаревшего** поведения, не административный production endpoint. События завершения не являются событиями переназначения. `pending_confirmation` занимает вместимость даже при обоих NULL assigned IDs.

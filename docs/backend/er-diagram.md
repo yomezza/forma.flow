@@ -37,4 +37,4 @@ erDiagram
 
 Actual columns/constraints: database-schema.sql. schedule_days composite primary key is (resource_id, day, stage); schedule_intervals composite FK uses all three columns. IDENTITY keys, session hashes and immutable booking snapshots are included in SQL even where diagram does not show field detail. Singleton site_settings and site_content stand alone without an artificial relation.
 
-Specialist/room assignment is **nullable as a pair** until admin assignment. Old global booking exclusion was removed; direct staff and room exclusions remain. See [idea 01 backend design](features/01-specialists/backend-implementation.md).
+Specialist/room assignment is **nullable as a pair** until admin assignment. Old global booking exclusion was removed; direct staff and room exclusions remain. See [SQL schema](database-schema.sql) and [transaction plan](database-operations.md).

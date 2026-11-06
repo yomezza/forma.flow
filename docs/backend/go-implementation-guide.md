@@ -33,3 +33,17 @@ HttpSiteAPI adapter к frontend, режимы расписания и revision p
 Два Go инстанса, PostgreSQL concurrent tests, solver performance bounds, migration/backup restore, PII audit, HTTP rate-limits, security checks, CI. Приёмка: гарантии вместимости не зависят от mutex, все миграции проверены на целевой PostgreSQL, нет PII в специалистских ответах.
 
 Приоритет задают [go-testing.md](go-testing.md) и [migrations.md](migrations.md). Ни один этап не завершён лишь потому, что handler компилируется. Не переносить в production демонстрационные import/reset/clear endpoints.
+
+## Фазы для идеи 01 — специалисты/кабинеты, обязательный следующий набор задач
+
+Реализовать **после базового старта, но до публичного бронирования**: это **не** самостоятельный будущий модуль, который можно отложить после выпуска.
+
+1. **Миграции и schema cutover.** `resources` трактовать как студию, создать `staff_accounts/account_roles`, `specialists`, `rooms`, их квалификацию и графики, absence_requests, историю назначений/завершений, capacity_exceptions. Удалить несовместимый **глобальный** `bookings_no_overlap`, создать два GiST EXCLUDE на специалиста/кабинет; зафиксировать studio-lock protocol. 
+2. **Пакет assignment.** Чистый Go алгоритм совместного поиска по всем пересекающимся обязательствам; SAT/UNSAT/UNKNOWN, фиксированные назначения, поддержка парных ограничений, буферов и личных графиков. Unit-тесты до создания HTTP handlers.
+3. **Публичный booking сервис.** Под `schedule_state FOR UPDATE` повторно считать solver, NULL assigned pair, snapshot услуги/клиента, idempotency; 20 конкурентных POST с 1 комнатой → только одна бронь. Две разные комнаты и сотрудники → две одновременные брони.
+4. **Admin staff/rooms/absences.** CRUD/архивирование/приглашение, недельный график, approved leave с предупреждениями, admin preview/assign/reassign (room auto), лог событий, блок «Требуют внимания».
+5. **RBAC + specialist workspace.** `account_roles`, принудительная смена первого пароля, чтение только своих booked/confirmed/completed без телефона, own absences, own reassignment history.
+6. **Завершение специалистом.** POST specialist/me/bookings/{id}/complete после `ends_at`, undo тем же специалистом без срока, аудит. Удалить устаревший `adminCompleteBooking` и admin завершение из UI/REST.
+7. **Интеграция и тесты.** Проверить все 77 операций OpenAPI, валидировать фронтенд-адаптер и permissions, запускать migration + многопроцессные тесты; документация `docs/backend` — источник backend-решений, а `ideas` — источник согласованных бизнес-правил.
+
+Подробности в [бизнес-правилах](business-rules.md), [движке](scheduling-engine.md), [SQL](database-schema.sql), [транзакциях](database-operations.md), [контрактах Go](go-service-contracts.md), [Go тестах](go-testing.md) и [OpenAPI](openapi.yaml). Первоисточник: [идея 01](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L15-L52).
