@@ -10,7 +10,7 @@ erDiagram
   SCHEDULE_DAYS ||--o{ SCHEDULE_INTERVALS : contains
   RESOURCES ||--o{ BOOKINGS : handles
   SERVICES ||--o{ BOOKINGS : snapshots
-  CLIENTS ||--o{ BOOKINGS : books
+  CLIENTS o|--o{ BOOKINGS : assigned_by_admin
   BOOKINGS ||--o{ BOOKING_EVENTS : transitions
   BOOKINGS ||--o{ IDEMPOTENCY_KEYS : returns
   RESOURCES ||--o{ SCHEDULE_CHANGES : versions

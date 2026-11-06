@@ -22,7 +22,7 @@ Context: browser-specific timezone and RUB integer UI price. Decision: database 
 Context: small SQL surface and need controlled transactions. Decision: pgx directly, goose for migrations, standard HTTP/log/tests. Alternatives: sqlc now, ORM, chi. Re-evaluate sqlc after queries stabilize.
 
 ## ADR-008: Client telephone lookup is not identity proof
-Context: existing phone-based reuse. Decision: reuse client id by normalized phone but do not expose existing client details or overwrite existing canonical name via public POST. Consequence: name conflict goes to admin workflow.
+Context: one phone may belong to multiple clients (e.g., relatives). Earlier unique-phone model and automatic client reuse are superseded. Decision: clients.phone_normalized is non-unique, UUID is identity, public pending booking leaves client_id NULL; admin explicitly chooses/creates and associates a client before confirmation. Alternative: auto-use first phone match; rejected due to mixed histories. Consequences: list-based phone lookup, audited assignment endpoint, nullable FK for pending/cancelled, admin UI change. No separate contact-person entity.
 
 ## ADR-009: Advanced vacations mirror demo
 Context: code only applies vacations to simple mode. Decision: match current semantics and flag global vacation policy as a product question. Consequence: future change requires versioned migration/contract.

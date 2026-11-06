@@ -10,7 +10,7 @@ stateDiagram-v2
   cancelled --> pending_confirmation: admin restore, check availability
 ~~~
 
-The tel: button is only a link; it does not confirm. Repeat same status changes may be treated as idempotent read/no-op; any other forbidden transition returns 409 INVALID_STATUS_TRANSITION.
+The tel: button is only a link; it does not confirm. New pending booking has client_id=NULL until admin explicitly chooses or creates the client profile; confirmation without profile returns 409 CLIENT_LINK_REQUIRED. Cancel without profile remains allowed. Changes to a link are audited and never rewrite original client_name/client_phone snapshots. Repeat same status changes may be treated as idempotent read/no-op; any other forbidden transition returns 409 INVALID_STATUS_TRANSITION.
 
 Active reservation = pending_confirmation, confirmed or completed for the GiST non-overlap constraint. Completed occupies its past slot historically; cancelled releases the range. No automatic cancellation when changing working hours or vacation. Warning outOfSchedule is calculated for pending/confirmed from the currently active published mode and resource zone; it is not a new status.
 

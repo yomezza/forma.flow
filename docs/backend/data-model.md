@@ -4,8 +4,8 @@
 
 - resources: owner of schedule and booking exclusion; one primary resource in MVP, multiple later; IANA time_zone.
 - services: persistent text IDs compatible with classic/relax/back; BIGINT price_amount in whole RUB; is_active archives without deleting booking FK.
-- clients: unique normalized +7 telephone, admin editable name; booking snapshots keep original form name/phone; retaining history takes precedence over hard delete.
-- bookings: resource, service and client FKs, immutable service snapshots, local_date/local_time for UI, UTC timestamps for range checks, buffer_minutes snapshot and blocked_until, consent_version and consent_at for auditable form submission, lifecycle status and timestamps.
+- clients: distinct UUID identity; normalized +7 telephone is NOT UNIQUE (relatives can share it), phone lookup returns multiple possible profiles; booking snapshots keep submitted name/phone.
+- bookings: resource/service FKs and nullable client_id; a public pending request is deliberately unlinked until admin assigns an existing profile or creates+assigns a new profile. Confirmed/completed bookings require linked client_id. Store submitted name/phone, service snapshots, local and UTC timestamps, consent_version and consent_at.
 - simple_schedule, simple_blocked_dates, vacations: weekly rules, date exceptions, inclusive vacation ranges; exclusively applied in simple mode in MVP.
 - schedule_state: active mode and monotonically increasing revision; locked with FOR UPDATE for all schedule writes and booking policy reads.
 - schedule_days (draft/published) and schedule_intervals: dated advanced rules, several intervals; absence of published rule => unplanned.
@@ -29,3 +29,7 @@ Working days 0=Sunday..6=Saturday matching JS getDay. Working hours do not cross
 Full PostgreSQL DDL: database-schema.sql; index rationale: database-indexes.md.
 
 SQL adds CHECK constraints tying ends_at to duration_minutes and blocked_until to buffer_minutes; together with the partial EXCLUDE this prevents inconsistent stored time spans from bypassing the collision rule. This is enforced in the database, not only in Go.
+
+## Shared-phone client rule
+
+A client is identified by UUID, not phone and not (name, phone). Several clients may share identical phone and name. Admin chooses existing profile or creates a new one explicitly when processing an unlinked booking. Public POST leaves client_id NULL and does not create clients. Cancellation before linking is allowed; confirming requires a link. Client history uses bookings.client_id exclusively. Admin reassignment is logged and never overwrites booking client_name/client_phone snapshots. No separate contact-person entity.

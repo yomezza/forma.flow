@@ -2,7 +2,7 @@
 
 | Index | Access path |
 |---|---|
-| clients.phone_normalized UNIQUE | direct lookup and UPSERT during booking |
+| clients_phone_candidates (phone_normalized,id), non-unique | list ALL possible profile matches by phone (0..N); never automatic UPSERT |
 | bookings_no_overlap GiST partial EXCLUDE | non-overlapping reservations by resource, including buffer; also enforces concurrent writes |
 | bookings_resource_start | month/day bookings and admin upcoming |
 | bookings_client_history | per-client booking history DESC |
@@ -19,4 +19,4 @@
 | audit_log_recent | admin audit listing sorted by recency |
 | idempotency_keys PRIMARY KEY | competing duplicate POST serialization |
 
-Do not prematurely index every column. If client-name search becomes slow, measure and consider pg_trgm on lower(full_name) with GIN; for MVP phone unique + bounded client listing is adequate. Run EXPLAIN (ANALYZE, BUFFERS) against realistic fixture volumes; verify index usage and sort costs in integration/performance tests. Avoid N+1 by fetching bookings and client/service in batch; schedule availability SELECT all bookings for bounded range once rather than per slot.
+Do not prematurely index every column. If client-name search becomes slow, measure and consider pg_trgm on lower(full_name) with GIN; for MVP non-unique phone index and bounded admin client listing are adequate. Run EXPLAIN (ANALYZE, BUFFERS) against realistic fixture volumes; verify index usage and sort costs in integration/performance tests. Avoid N+1 by fetching bookings and client/service in batch; schedule availability SELECT all bookings for bounded range once rather than per slot.

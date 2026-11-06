@@ -19,7 +19,8 @@ type ClockMinute uint16 // [0..1439] for start; end can be 1440
 type Interval struct { Start, End int } // minutes from local midnight, [start,end)
 type DayRule struct { Kind DayKind; Intervals []Interval; StepOverride *int }
 type Booking struct {
-    ID, ResourceID, ClientID, ServiceID string
+    ID, ResourceID, ServiceID string
+    ClientID *string // nil until admin explicitly assigns profile
     StartsAt, EndsAt, BlockedUntil time.Time
     Date LocalDate
     Time string
@@ -40,7 +41,7 @@ type Service struct {
 
 Date/time: time.LoadLocation(resource.TimeZone); parse local calendar date/time and verify round-trip to local components. DST nonexistent or ambiguous local minutes are rejected in MVP (VALIDATION). Store starts_at, ends_at, blocked_until as PostgreSQL timestamptz; never compare browser-local JS Date with cabinet local date.
 
-Phone: normalize ten digits or initial 7/8 + ten digits into +7XXXXXXXXXX, matching existing frontend. This is deduplication, not proof of caller identity.
+Phone: normalize ten digits or initial 7/8 + ten digits into +7XXXXXXXXXX, matching existing frontend. This is only normalization; it neither uniquely identifies a client nor proves identity. Multiple client UUIDs may share a phone, public request does not assign one.
 
 Money: priceAmount from DemoAPI is an integer number of RUB, preserved as PostgreSQL BIGINT (exact). Multicurrency fractional values require a deliberate new minor-unit contract; never convert implicitly through float64. Snapshots of service metadata and supplied contact name/phone remain in booking even after client/catalog edits.
 
