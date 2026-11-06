@@ -20,9 +20,9 @@
 3. [assignment-engine.md](assignment-engine.md) — центральная функция проверки совместной размещаемости заявок.
 4. [demo-data-migration.md](demo-data-migration.md) — формат `localStorage`, JSON-примеры, переход с `version:3` без потери данных.
 5. [demo-api-spec.md](demo-api-spec.md) — конкретные сигнатуры методов, результаты, ошибки и изменения данных.
-6. [frontend-handoff.md](frontend-handoff.md) — порядок реализации UI, интеграции и чек-лист.
-7. [demo-test-cases.md](demo-test-cases.md) — воспроизводимые JS тесты, в том числе сложные конфликты.
-8. [decisions.md](decisions.md) — инженерные уточнения и границы принятых допущений.
+6. [decisions.md](decisions.md) — инженерные уточнения и границы принятых допущений.
+
+**Go/PostgreSQL-архитектура не здесь:** [основная документация `docs/backend`](../../README.md). Текущая папка содержит только материалы для DemoAPI и JavaScript. Ссылка на отдельную backend-спецификацию здесь намеренно не создаётся.
 
 ### Нельзя перепутать
 
