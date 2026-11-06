@@ -12,26 +12,31 @@ CREATE TABLE resources (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE admin_users (
+CREATE TABLE staff_accounts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email text NOT NULL CHECK (length(email) BETWEEN 3 AND 255),
   password_hash text NOT NULL,
-  role text NOT NULL DEFAULT 'admin' CHECK (role IN ('admin','owner')),
+  must_change_password boolean NOT NULL DEFAULT true,
   disabled_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX admin_users_email_unique ON admin_users (lower(email));
+CREATE UNIQUE INDEX staff_accounts_email_unique ON staff_accounts (lower(email));
+CREATE TABLE account_roles (
+  account_id uuid NOT NULL REFERENCES staff_accounts(id) ON DELETE RESTRICT,
+  role text NOT NULL CHECK (role IN ('owner','admin','specialist')),
+  PRIMARY KEY(account_id,role)
+);
 
-CREATE TABLE admin_sessions (
+CREATE TABLE staff_sessions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES staff_accounts(id) ON DELETE CASCADE,
   token_hash bytea NOT NULL UNIQUE,
   created_at timestamptz NOT NULL DEFAULT now(),
   expires_at timestamptz NOT NULL,
   revoked_at timestamptz,
   CHECK (expires_at > created_at)
 );
-CREATE INDEX admin_sessions_active_by_user ON admin_sessions(user_id,expires_at) WHERE revoked_at IS NULL;
+CREATE INDEX staff_sessions_active_by_user ON staff_sessions(user_id,expires_at) WHERE revoked_at IS NULL;
 
 CREATE TABLE services (
   id text PRIMARY KEY CHECK (id ~ '^[A-Za-z0-9_-]{1,100}$'),
@@ -89,6 +94,7 @@ CREATE TABLE schedule_state (
   resource_id uuid PRIMARY KEY REFERENCES resources(id) ON DELETE RESTRICT,
   active_mode text NOT NULL DEFAULT 'simple' CHECK (active_mode IN ('simple','advanced')),
   revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0),
+  capacity_revision bigint NOT NULL DEFAULT 0 CHECK (capacity_revision >= 0),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -119,11 +125,107 @@ CREATE TABLE schedule_intervals (
      int4range(start_minute,end_minute,'[)') WITH &&)
 );
 
+-- One resources row represents a studio-wide schedule, not a single therapist or room.
+CREATE TABLE specialists (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  resource_id uuid NOT NULL REFERENCES resources(id) ON DELETE RESTRICT,
+  account_id uuid UNIQUE REFERENCES staff_accounts(id) ON DELETE RESTRICT,
+  full_name text NOT NULL CHECK (length(trim(full_name)) BETWEEN 2 AND 120),
+  state text NOT NULL DEFAULT 'active' CHECK (state IN ('active','archived')),
+  archived_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(id,resource_id)
+);
+CREATE INDEX specialists_active ON specialists(resource_id,full_name) WHERE state='active';
+
+CREATE TABLE rooms (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  resource_id uuid NOT NULL REFERENCES resources(id) ON DELETE RESTRICT,
+  name text NOT NULL CHECK(length(trim(name)) BETWEEN 1 AND 80),
+  sort_order integer NOT NULL DEFAULT 0 CHECK (sort_order BETWEEN 0 AND 9999),
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(id,resource_id)
+);
+CREATE INDEX rooms_active_order ON rooms(resource_id,sort_order,id) WHERE is_active;
+
+CREATE TABLE specialist_services (
+  specialist_id uuid NOT NULL REFERENCES specialists(id) ON DELETE RESTRICT,
+  service_id text NOT NULL REFERENCES services(id) ON DELETE RESTRICT,
+  PRIMARY KEY(specialist_id, service_id)
+);
+
+CREATE TABLE specialist_weekly_intervals (
+  specialist_id uuid NOT NULL REFERENCES specialists(id) ON DELETE RESTRICT,
+  weekday smallint NOT NULL CHECK (weekday BETWEEN 0 AND 6), -- 0=Sunday
+  start_minute integer NOT NULL CHECK (start_minute BETWEEN 0 AND 1439),
+  end_minute integer NOT NULL CHECK (end_minute BETWEEN 1 AND 1440),
+  PRIMARY KEY(specialist_id,weekday,start_minute),
+  CHECK (start_minute < end_minute),
+  CONSTRAINT specialist_weekly_no_overlap EXCLUDE USING gist
+    (specialist_id WITH =, weekday WITH =, int4range(start_minute,end_minute,'[)') WITH &&)
+);
+
+CREATE TABLE specialist_day_overrides (
+  specialist_id uuid NOT NULL REFERENCES specialists(id) ON DELETE RESTRICT,
+  day date NOT NULL,
+  kind text NOT NULL CHECK (kind IN ('working','off')),
+  PRIMARY KEY(specialist_id,day)
+);
+CREATE TABLE specialist_override_intervals (
+  specialist_id uuid NOT NULL,
+  day date NOT NULL,
+  start_minute integer NOT NULL CHECK(start_minute BETWEEN 0 AND 1439),
+  end_minute integer NOT NULL CHECK(end_minute BETWEEN 1 AND 1440),
+  PRIMARY KEY(specialist_id,day,start_minute),
+  FOREIGN KEY(specialist_id,day) REFERENCES specialist_day_overrides(specialist_id,day) ON DELETE CASCADE,
+  CHECK (start_minute < end_minute),
+  CONSTRAINT specialist_override_no_overlap EXCLUDE USING gist
+    (specialist_id WITH =, day WITH =, int4range(start_minute,end_minute,'[)') WITH &&)
+);
+
+CREATE TABLE absence_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  specialist_id uuid NOT NULL REFERENCES specialists(id) ON DELETE RESTRICT,
+  kind text NOT NULL CHECK (kind IN ('vacation','day_off')),
+  scope text NOT NULL CHECK (scope IN ('full_days','partial_day')),
+  start_date date NOT NULL,
+  end_date date NOT NULL,
+  start_minute integer CHECK (start_minute BETWEEN 0 AND 1439),
+  end_minute integer CHECK (end_minute BETWEEN 1 AND 1440),
+  status text NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','approved','rejected','withdrawn')),
+  reason text NOT NULL DEFAULT '' CHECK (length(reason) <= 500),
+  requested_by_account_id uuid REFERENCES staff_accounts(id) ON DELETE RESTRICT,
+  requested_at timestamptz NOT NULL DEFAULT now(),
+  reviewed_by_account_id uuid REFERENCES staff_accounts(id) ON DELETE RESTRICT,
+  reviewed_at timestamptz,
+  review_note text NOT NULL DEFAULT '' CHECK (length(review_note) <= 500),
+  CHECK (start_date <= end_date),
+  CHECK (
+    (scope='full_days' AND start_minute IS NULL AND end_minute IS NULL)
+    OR (scope='partial_day' AND start_date=end_date AND
+        start_minute IS NOT NULL AND end_minute IS NOT NULL AND start_minute<end_minute)
+  ),
+  CHECK ((status IN ('approved','rejected')) = (reviewed_at IS NOT NULL))
+);
+CREATE INDEX absence_by_specialist_dates ON absence_requests(specialist_id,start_date,end_date)
+  WHERE status='approved';
+CREATE INDEX absence_pending ON absence_requests(requested_at,id) WHERE status='pending';
+
 CREATE TABLE bookings (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   resource_id uuid NOT NULL REFERENCES resources(id) ON DELETE RESTRICT,
   service_id text NOT NULL REFERENCES services(id) ON DELETE RESTRICT,
   client_id uuid REFERENCES clients(id) ON DELETE RESTRICT,
+  specialist_id uuid,
+  room_id uuid,
+  assignment_updated_at timestamptz,
+  completed_by_specialist_id uuid REFERENCES specialists(id) ON DELETE RESTRICT,
+  completed_at timestamptz,
+  FOREIGN KEY (specialist_id,resource_id) REFERENCES specialists(id,resource_id) ON DELETE RESTRICT,
+  FOREIGN KEY (room_id,resource_id) REFERENCES rooms(id,resource_id) ON DELETE RESTRICT,
   client_name text NOT NULL CHECK (length(trim(client_name)) BETWEEN 3 AND 120),
   client_phone varchar(12) NOT NULL CHECK (client_phone ~ '^\+7[0-9]{10}$'),
   consent_version text NOT NULL CHECK (length(consent_version) BETWEEN 1 AND 80),
@@ -150,19 +252,29 @@ CREATE TABLE bookings (
   CHECK (blocked_until = ends_at + make_interval(mins => buffer_minutes)),
   CHECK (status != 'confirmed' OR confirmed_at IS NOT NULL),
   CHECK (status NOT IN ('confirmed','completed') OR client_id IS NOT NULL),
-  CONSTRAINT bookings_no_overlap EXCLUDE USING gist
-    (resource_id WITH =, tstzrange(starts_at,blocked_until,'[)') WITH &&)
-    WHERE (status IN ('pending_confirmation','confirmed','completed'))
+  CHECK ((specialist_id IS NULL) = (room_id IS NULL)),
+  -- Partial exclusion: a single therapist or room cannot be doubly assigned.
+  -- Unassigned bookings (both NULL) are protected by serial capacity check,
+  -- not a one-room global EXCLUDE constraint.
+  CONSTRAINT bookings_specialist_no_overlap EXCLUDE USING gist
+    (specialist_id WITH =, tstzrange(starts_at,blocked_until,'[)') WITH &&)
+    WHERE (specialist_id IS NOT NULL AND status IN ('pending_confirmation','confirmed','completed')),
+  CONSTRAINT bookings_room_no_overlap EXCLUDE USING gist
+    (room_id WITH =, tstzrange(starts_at,blocked_until,'[)') WITH &&)
+    WHERE (room_id IS NOT NULL AND status IN ('pending_confirmation','confirmed','completed'))
 );
 CREATE INDEX bookings_resource_start ON bookings(resource_id,starts_at DESC);
+CREATE INDEX bookings_assigned_to_specialist ON bookings(specialist_id,starts_at DESC) WHERE specialist_id IS NOT NULL;
+CREATE INDEX bookings_assigned_to_room ON bookings(room_id,starts_at DESC) WHERE room_id IS NOT NULL;
 CREATE INDEX bookings_client_history ON bookings(client_id,starts_at DESC);
 CREATE INDEX bookings_pending ON bookings(starts_at,id) WHERE status='pending_confirmation';
 CREATE INDEX bookings_active_upcoming ON bookings(resource_id,starts_at) WHERE status IN ('pending_confirmation','confirmed');
+CREATE INDEX bookings_unassigned_upcoming ON bookings(resource_id,starts_at) WHERE specialist_id IS NULL AND status IN ('pending_confirmation','confirmed');
 
 CREATE TABLE booking_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id uuid NOT NULL REFERENCES bookings(id) ON DELETE RESTRICT,
-  actor_id uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+  actor_id uuid REFERENCES staff_accounts(id) ON DELETE SET NULL,
   previous_status text,
   new_status text NOT NULL,
   note text NOT NULL DEFAULT '',
@@ -170,6 +282,43 @@ CREATE TABLE booking_events (
   CHECK (new_status IN ('pending_confirmation','confirmed','completed','cancelled'))
 );
 CREATE INDEX booking_events_by_booking ON booking_events(booking_id,created_at,id);
+
+CREATE TABLE booking_assignment_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id uuid NOT NULL REFERENCES bookings(id) ON DELETE RESTRICT,
+  actor_id uuid NOT NULL REFERENCES staff_accounts(id) ON DELETE RESTRICT,
+  previous_specialist_id uuid REFERENCES specialists(id) ON DELETE RESTRICT,
+  new_specialist_id uuid REFERENCES specialists(id) ON DELETE RESTRICT,
+  previous_room_id uuid REFERENCES rooms(id) ON DELETE RESTRICT,
+  new_room_id uuid REFERENCES rooms(id) ON DELETE RESTRICT,
+  affected_booking_ids uuid[] NOT NULL DEFAULT '{}',
+  explicit_override boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX assignment_events_booking ON booking_assignment_events(booking_id,created_at,id);
+CREATE INDEX assignment_events_previous_staff ON booking_assignment_events(previous_specialist_id,created_at DESC);
+
+CREATE TABLE booking_completion_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id uuid NOT NULL REFERENCES bookings(id) ON DELETE RESTRICT,
+  specialist_id uuid NOT NULL REFERENCES specialists(id) ON DELETE RESTRICT,
+  action text NOT NULL CHECK (action IN ('completed','undone')),
+  note text NOT NULL DEFAULT '' CHECK (length(note) <= 500),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX completion_events_booking ON booking_completion_events(booking_id,created_at,id);
+
+CREATE TABLE capacity_exceptions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  resource_id uuid NOT NULL REFERENCES resources(id) ON DELETE RESTRICT,
+  causing_booking_id uuid REFERENCES bookings(id) ON DELETE RESTRICT,
+  affected_booking_id uuid NOT NULL REFERENCES bookings(id) ON DELETE RESTRICT,
+  reason text NOT NULL CHECK(reason IN ('INDIRECT_ASSIGNMENT_CONFLICT','REQUIRES_REASSIGNMENT','ROOM_INACTIVE')),
+  actor_id uuid REFERENCES staff_accounts(id) ON DELETE RESTRICT,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  resolved_at timestamptz
+);
+CREATE INDEX capacity_exceptions_open ON capacity_exceptions(resource_id,affected_booking_id) WHERE resolved_at IS NULL;
 
 CREATE TABLE idempotency_keys (
   scope text NOT NULL,
@@ -185,7 +334,7 @@ CREATE TABLE schedule_changes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   resource_id uuid NOT NULL REFERENCES resources(id) ON DELETE RESTRICT,
   revision bigint NOT NULL,
-  actor_id uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+  actor_id uuid REFERENCES staff_accounts(id) ON DELETE SET NULL,
   action text NOT NULL,
   before_state jsonb NOT NULL,
   after_state jsonb NOT NULL,
@@ -212,7 +361,7 @@ CREATE TABLE site_content (
 );
 CREATE TABLE audit_log (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  actor_id uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+  actor_id uuid REFERENCES staff_accounts(id) ON DELETE SET NULL,
   action text NOT NULL,
   entity_type text NOT NULL,
   entity_id text NOT NULL,

@@ -14,10 +14,27 @@ erDiagram
   BOOKINGS ||--o{ BOOKING_EVENTS : transitions
   BOOKINGS ||--o{ IDEMPOTENCY_KEYS : returns
   RESOURCES ||--o{ SCHEDULE_CHANGES : versions
-  ADMIN_USERS ||--o{ ADMIN_SESSIONS : signs_in
-  ADMIN_USERS ||--o{ BOOKING_EVENTS : records
-  ADMIN_USERS ||--o{ SCHEDULE_CHANGES : publishes
-  ADMIN_USERS ||--o{ AUDIT_LOG : acts
+  STAFF_ACCOUNTS ||--o{ STAFF_SESSIONS : signs_in
+  STAFF_ACCOUNTS ||--o{ ACCOUNT_ROLES : has
+  STAFF_ACCOUNTS o|--o| SPECIALISTS : personal_profile
+  STAFF_ACCOUNTS ||--o{ BOOKING_EVENTS : records
+  STAFF_ACCOUNTS ||--o{ SCHEDULE_CHANGES : publishes
+  STAFF_ACCOUNTS ||--o{ AUDIT_LOG : acts
+  RESOURCES ||--o{ SPECIALISTS : employs
+  RESOURCES ||--o{ ROOMS : offers
+  SPECIALISTS ||--o{ SPECIALIST_SERVICES : provides
+  SERVICES ||--o{ SPECIALIST_SERVICES : qualified_for
+  SPECIALISTS ||--o{ SPECIALIST_WEEKLY_INTERVALS : weekly
+  SPECIALISTS ||--o{ SPECIALIST_DAY_OVERRIDES : overrides
+  SPECIALIST_DAY_OVERRIDES ||--o{ SPECIALIST_OVERRIDE_INTERVALS : contains
+  SPECIALISTS ||--o{ ABSENCE_REQUESTS : requests
+  SPECIALISTS o|--o{ BOOKINGS : assigned
+  ROOMS o|--o{ BOOKINGS : assigned
+  BOOKINGS ||--o{ BOOKING_ASSIGNMENT_EVENTS : reassignments
+  BOOKINGS ||--o{ BOOKING_COMPLETION_EVENTS : completions
+  BOOKINGS ||--o{ CAPACITY_EXCEPTIONS : problems
 ~~~
 
 Actual columns/constraints: database-schema.sql. schedule_days composite primary key is (resource_id, day, stage); schedule_intervals composite FK uses all three columns. IDENTITY keys, session hashes and immutable booking snapshots are included in SQL even where diagram does not show field detail. Singleton site_settings and site_content stand alone without an artificial relation.
+
+Specialist/room assignment is **nullable as a pair** until admin assignment. Old global booking exclusion was removed; direct staff and room exclusions remain. See [idea 01 backend design](features/01-specialists/backend-implementation.md).

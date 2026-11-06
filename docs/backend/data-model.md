@@ -2,7 +2,7 @@
 
 ## Entity responsibilities
 
-- resources: owner of schedule and booking exclusion; one primary resource in MVP, multiple later; IANA time_zone.
+- resources: studio/site with one published studio schedule and an IANA time_zone. **Not** one therapist or one room; each studio owns multiple specialists and rooms.
 - services: persistent text IDs compatible with classic/relax/back; BIGINT price_amount in whole RUB; is_active archives without deleting booking FK.
 - clients: distinct UUID identity; normalized +7 telephone is NOT UNIQUE (relatives can share it), phone lookup returns multiple possible profiles; booking snapshots keep submitted name/phone.
 - bookings: resource/service FKs and nullable client_id; a public pending request is deliberately unlinked until admin assigns an existing profile or creates+assigns a new profile. Confirmed/completed bookings require linked client_id. Store submitted name/phone, service snapshots, local and UTC timestamps, consent_version and consent_at.
@@ -12,13 +12,13 @@
 - schedule_changes: durable snapshots before/after each schedule mutation; restore copies historical before_state into drafts only.
 - booking_events: append-only status timeline; audit_log: admin action trail.
 - idempotency_keys: exactly-once effect for same scope/key+payload, transaction-local reservation.
-- admin_users/admin_sessions: server auth, never frontend-only. site_settings/site_content: singleton content and appearance configuration.
+- staff_accounts/staff_sessions + account_roles: one account can hold both admin and specialist roles; specialists.account_id optionally connects profile. site_settings/site_content: singleton content and appearance configuration.
 
 ## Key decisions
 
 All IDs for clients, bookings, vacation, admin and resource are UUID; service ID is a stable text slug because the existing frontend uses symbolic IDs. ON DELETE RESTRICT protects references for bookings; admin removal archives services; PII deletion needs explicit separate anonymization policy. No cascading deletes of bookings or client history.
 
-PostgreSQL GiST EXCLUDE on (resource_id, tstzrange(starts_at, blocked_until)) for non-cancelled bookings ensures no overlap even with multiple Go instances. Completed remains in the exclusion to preserve historical truth; cancelled frees interval. Buffer after each session is stored as blocked_until and does not shrink retroactively when settings change.
+Legacy **global** bookings EXCLUDE by resource_id is removed: it would forbid parallel sessions in different rooms. Two partial GiST exclusions on **specialist_id** and **room_id** forbid direct double assignment for pending/confirmed/completed, with buffer inside blocked_until; cancelled releases the range. Both assignment columns are either NULL or set together. **Unassigned bookings are protected by a serialized studio capacity check in PostgreSQL transactions**, not by a per-resource EXCLUDE constraint. See [idea 01](features/01-specialists/backend-implementation.md).
 
 EXCLUDE on overlapping vacations and schedule_intervals; app service must additionally verify working days have at least one interval and that off/unplanned days have zero intervals. Constraints cannot express cross-row count simply without triggers; avoid unnecessary triggers.
 
@@ -40,3 +40,7 @@ A client is identified by UUID, not phone and not (name, phone). Several clients
 - [Client uniqueness in current demo](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L25-L43) and [booking-time automatic association](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L303-L321), both **superseded** for Go by the shared-phone rule.
 - [Published/draft date rule representation](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L99-L118).
 - [Client/card history rendered by frontend](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/admin.js#L153-L176).
+
+## Specialists/rooms extension — idea 01
+
+Authoritative [requirements](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L15-L52) and [implementation design](features/01-specialists/backend-implementation.md). New tables: specialists, rooms, specialist_services, specialist_weekly_intervals, specialist_day_overrides, specialist_override_intervals, absence_requests, booking_assignment_events, booking_completion_events, capacity_exceptions, account_roles. Bookings contain nullable specialist_id and room_id, both NULL until explicitly assigned (room auto-selected on assignment). **Confirmation is independent of specialist assignment**; requires only client_id. Studio schedule_state.capacity_revision serializes all capacity-affecting changes. Visit history and contact-phone uniqueness rule unchanged.
