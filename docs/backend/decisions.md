@@ -26,3 +26,20 @@ Context: one phone may belong to multiple clients (e.g., relatives). Earlier uni
 
 ## ADR-009: Advanced vacations mirror demo
 Context: code only applies vacations to simple mode. Decision: match current semantics and flag global vacation policy as a product question. Consequence: future change requires versioned migration/contract.
+
+## ADR-010: Studio capacity is not a single resource exclusion
+
+[Idea 01](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L15-L25) requires simultaneous bookings in distinct rooms when capacity allows. `resources` is the studio. Drop the former global GiST EXCLUDE(resource_id,time) and use **two** partial GiST EXCLUDE constraints for assigned `specialist_id` and `room_id`; use **PostgreSQL studio row FOR UPDATE + joint solver** for unassigned capacity. A serial lock is necessary: GiST with NULL assigned fields cannot protect collective capacity.
+
+## ADR-011: Staff account and appointment status are separate axes
+
+One account holds multiple roles via `account_roles`; specialist profile is separate. Confirmation never requires specialist assignment, only existing client link. Completion after scheduled end is owned by the assigned specialist and may be undone indefinitely by the same actor with audit. Assignment changes create independent events and never alter confirmation automatically.
+
+## ADR-012: Personal leave cannot delete assignments
+
+Staff simple week, day overrides, approved partial/full-day absence, archive and service qualifications limit **new** eligibility. Admin approvals may leave existing assignments flagged for reallocation; warnings are stored/audited, not silent cancels. Direct conflicts never overridable; indirect harm to other unassigned bookings requires precise acknowledgement.
+
+
+## Идея 01: источник и приоритет
+
+Согласованные требования: [назначения и вместимость](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L15-L26), [личные графики и отсутствия](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L28-L34), [роли](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L36-L43), [завершение и аудит](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L45-L52). Текущий frontend не реализует эти правила; Go/PostgreSQL-проект в данном документе — целевое состояние.

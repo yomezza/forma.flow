@@ -50,3 +50,43 @@ func Solve(ctx context.Context, jobs []AssignmentJob,
 Пакет `schedule` строит временные кандидаты и вычисляет дату `past/working/full/off/unplanned/vacation/blocked`, пакет `assignment` проверяет общую совместимость. Публичная API не отдаёт witness, ФИО, specialist ID и room ID. Случайные SQL запросы на каждый слот запрещены — данные пакетно подгружаются по диапазону с верхними лимитами.
 
 Модульные и PostgreSQL-тесты: [go-testing.md](go-testing.md).
+
+## Совместная размещаемость: чистый Go solver (идея 01)
+
+Индивидуальная `AvailableSlots` из прежней модели **недостаточна**. Студийный график определяет допустимые старты, квалификация, недельный график специалиста, исключения и **утверждённые** отсутствия определяют допустимые исполнители, `rooms` — допустимые кабинеты. Каждая незакреплённая заявка — обязательство, которому нужно найти пару `(specialist, room)`; закреплённая заявка имеет только одну пару. Пересечения проверяются по `[starts_at,blocked_until)`, включая буфер после массажа.
+
+1. Для кандидата и всех pending/confirmed активных заявок построить граф пересечения временных диапазонов; брать **всю транзитивную компоненту** кандидата (A пересекает B, B пересекает C — A/B/C решаются вместе).
+2. Для каждого задания построить домен допустимых пар по компетенции, рабочим часам, отсутствию, активности и уже закреплённым IDs; запрещать автоматическую смену назначений.
+3. Упорядочивать задания по минимальному текущему домену; рекурсивный backtracking + forward checking, детерминированный tie-break по ID. Две задачи, чьи occupied ranges пересекаются, обязаны иметь **разные specialist_id и room_id**.
+4. Если найдено полное распределение — SAT и witness. Если доказано отсутствие — UNSAT; если превышен бюджет или отменён контекст — UNKNOWN. **UNKNOWN не приравнивать ни к SAT, ни к UNSAT:** для новой записи вернуть контролируемую ошибку `CAPACITY_CHECK_LIMIT`.
+5. Перед публичным бронированием прочесть открытые `capacity_exceptions`. Если компонент касается невыполнимой записи, не добавлять новую заявку, пока админ не урегулирует конфликт. Не блокировать весь день из-за несвязанного временного компонента.
+6. Публичный preview возвращает только HH:mm. Witness распределения не публикуется и не закрепляется; при admin назначении подбор свободного кабинета `sort_order,id` возвращается отдельно в preview.
+
+~~~go
+package assignment
+import (
+  "context"
+  "time"
+)
+type Pair struct { SpecialistID, RoomID string }
+type Job struct {
+  BookingID, ServiceID string
+  Start, OccupiedUntil time.Time
+  Fixed *Pair // nil means unassigned
+}
+type Result struct {
+  Feasible, Unknown bool
+  Witness map[string]Pair
+  AffectedBookingIDs []string
+  Reason string
+}
+// Pure algorithm: no HTTP, SQL or shared mutable process state.
+func Solve(ctx context.Context, jobs []Job, domains map[string][]Pair, maxNodes int) (Result, error)
+~~~
+
+Это **контракт сигнатуры**, не готовая компилируемая реализация. `maxNodes` и лимит размера компонента — конфигурация, при неизвестности не принимать запрос. Предпросмотр и фактическая запись должны вызывать **один и тот же алгоритм**, но запись — внутри PostgreSQL-транзакции под studio-lock. Сравни [описание идеи](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L19-L26) и [демо-спецификацию](features/01-specialists/assignment-engine.md).
+
+
+## Идея 01: источник и приоритет
+
+Согласованные требования: [назначения и вместимость](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L15-L26), [личные графики и отсутствия](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L28-L34), [роли](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L36-L43), [завершение и аудит](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L45-L52). Текущий frontend не реализует эти правила; Go/PostgreSQL-проект в данном документе — целевое состояние.

@@ -21,6 +21,9 @@ type DayRule struct { Kind DayKind; Intervals []Interval; StepOverride *int }
 type Booking struct {
     ID, ResourceID, ServiceID string
     ClientID *string // nil until admin explicitly assigns profile
+    SpecialistID, RoomID *string // assigned as a pair, may be nil even after confirmation
+    CompletedBySpecialistID *string
+    CompletedAt *time.Time
     StartsAt, EndsAt, BlockedUntil time.Time
     Date LocalDate
     Time string
@@ -46,3 +49,41 @@ Phone: normalize ten digits or initial 7/8 + ten digits into +7XXXXXXXXXX, match
 Money: priceAmount from DemoAPI is an integer number of RUB, preserved as PostgreSQL BIGINT (exact). Multicurrency fractional values require a deliberate new minor-unit contract; never convert implicitly through float64. Snapshots of service metadata and supplied contact name/phone remain in booking even after client/catalog edits.
 
 Use HTTP DTO with explicit JSON camelCase tags in transport, distinct from domain structs. UUID string APIs keep existing UI IDs strings, while SQL uses UUID for booking/client/resource; service IDs stay text because frontend initial IDs are classic/relax/back.
+
+## Typed models for specialists and room assignment
+
+~~~go
+package domain
+import "time"
+type StaffRole string
+const ( RoleOwner StaffRole="owner"; RoleAdmin StaffRole="admin"; RoleSpecialist StaffRole="specialist" )
+type SpecialistState string
+const ( SpecialistActive SpecialistState="active"; SpecialistArchived SpecialistState="archived" )
+type Specialist struct { ID, ResourceID string; AccountID *string; FullName string; State SpecialistState; ServiceIDs []string }
+type Room struct { ID, ResourceID, Name string; SortOrder int; IsActive bool }
+type StaffAccount struct { ID, Email string; Roles []StaffRole; MustChangePassword bool }
+type AbsenceStatus string
+const ( AbsencePending AbsenceStatus="pending"; AbsenceApproved AbsenceStatus="approved"; AbsenceRejected AbsenceStatus="rejected"; AbsenceWithdrawn AbsenceStatus="withdrawn" )
+type Absence struct {
+  ID, SpecialistID string
+  Kind, Scope string // day_off|vacation; full_days|partial_day
+  StartDate, EndDate LocalDate
+  StartMinute, EndMinute *int // partial_day only
+  Status AbsenceStatus
+  ReviewedAt *time.Time
+}
+type AssignmentEvent struct {
+  BookingID, ActorAccountID string
+  BeforeSpecialistID, BeforeRoomID *string
+  AfterSpecialistID, AfterRoomID *string
+  AffectedBookingIDs []string
+  ExplicitOverride bool
+}
+~~~
+
+`resource_id` означает **студию**. Важное правило БД: `specialist_id` и `room_id` обе NULL либо обе NOT NULL. `client_id` — независимо nullable до ручного выбора карточки. Статус брони не кодирует назначение. Личные интервалы `ClockMinute` отсчитываются в IANA зоне студии; период отсутствия может покрывать часть дня. Не допускать выдачи `ClientPhone` через DTO специалиста.
+
+
+## Идея 01: источник и приоритет
+
+Согласованные требования: [назначения и вместимость](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L15-L26), [личные графики и отсутствия](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L28-L34), [роли](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L36-L43), [завершение и аудит](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L45-L52). Текущий frontend не реализует эти правила; Go/PostgreSQL-проект в данном документе — целевое состояние.
