@@ -3,7 +3,7 @@
 Architecture documentation only; not an implemented backend. Based on the actual frontend branch, commit 1bdc8c63eb0db12445e4a6dc0bf717967df0d9cf (2026-11-06).
 
 ## Reading order
-1. [Actual frontend assessment](investigation.md) and [all DemoAPI methods](api-mapping.md).
+1. [Actual frontend assessment](investigation.md), [verified cross-branch source links](frontend-source-links.md) and [all 57 DemoAPI methods](api-mapping.md).
 2. [Go architecture](go-architecture.md), [dependencies](go-dependencies.md), [domain models](go-domain-models.md), [service contracts](go-service-contracts.md).
 3. [Business rules](business-rules.md), [schedule engine](scheduling-engine.md), [booking lifecycle](booking-lifecycle.md).
 4. [Data model](data-model.md), [PostgreSQL DDL](database-schema.sql), [ER diagram](er-diagram.md), [database operations](database-operations.md), [indexes](database-indexes.md).
@@ -20,6 +20,6 @@ Frontend: frontend branch and JavaScript DemoAPI; backend developer: main and Go
 - Administrative data requires server authentication and authorization.
 - Destructive DemoAPI functions are NOT production HTTP endpoints.
 
-Sources: https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js and https://github.com/yomezza/forma.flow/blob/frontend/docs/DEMO_API.md .
+Source of truth for current UI: [DemoAPI implementation](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L1-L345), [frontend API documentation](https://github.com/yomezza/forma.flow/blob/frontend/docs/DEMO_API.md#L1-L108), and [cross-branch source reference index](frontend-source-links.md). The source index records the frontend commit checked; branch links intentionally track the moving `frontend` branch.
 
 Approved client identity rule: several clients (including relatives) may share one phone. Phone is never an automatic identifier. Public requests begin without client_id; administrator links an existing or new client before confirmation. No separate contact-person entity; see business-rules.md and frontend-integration.md.
