@@ -15,8 +15,8 @@
 | schedule_intervals_no_overlap GiST | prevent intersecting working intervals per (resource,date,stage) |
 | vacations_no_overlap GiST | guarantee no overlapping inclusive vacation periods per resource |
 | schedule_changes_recent | latest schedule actions per resource/revision |
-| admin_users_email_unique | case-insensitive administrator lookup |
-| admin_sessions(token_hash) UNIQUE | authenticate server-side cookie session |
+| staff_accounts_email_unique | case-insensitive administrator lookup |
+| staff_sessions(token_hash) UNIQUE | authenticate server-side cookie session |
 | booking_events_by_booking | immutable status timeline |
 | audit_log_recent | admin audit listing sorted by recency |
 | idempotency_keys PRIMARY KEY | competing duplicate POST serialization |

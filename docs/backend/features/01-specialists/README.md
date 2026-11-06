@@ -1,6 +1,6 @@
 # Идея 01 — специалисты, назначения и личные графики
 
-**Статус:** спецификация **демонстрационной логики** для будущей реализации frontend-разработчиком. Код `frontend` не изменён; Go, PostgreSQL, SQL и production OpenAPI **не проектируются и не обновляются в этой итерации** по отдельному решению владельца. Документы в `docs/backend/` остаются базовой архитектурой действующей версии до будущей отдельной задачи.
+**Статус:** спецификация **демонстрационной логики** для будущей реализации frontend-разработчиком. Код `frontend` не изменён. **Серверная архитектура для идеи № 01 теперь обновлена непосредственно в `docs/backend/`**: SQL, Go, API, бизнес-правила, миграции и тесты. В этой папке остаются **только спецификации демонстрационного DemoAPI**.
 
 ## Источники через GitHub-ссылки между ветками
 
@@ -9,9 +9,9 @@
 - [Графики и согласование отсутствия](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L28-L34).
 - [Роли и личный кабинет](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L36-L43).
 - [Статусы, завершение и аудит](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L45-L52).
-- [Промпт архитектору](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/architect_prompt.md#L1-L134) — из разделов А–В выполняется **демо-часть**, раздел Г (Go/PostgreSQL) осознанно отложен.
+- [Промпт архитектору](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/architect_prompt.md#L1-L134) — исходные требования; демо-спецификация здесь, Go/PostgreSQL — в основных документах.
 - [Текущий DemoAPI](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L1-L345), [договорённости frontend API](https://github.com/yomezza/forma.flow/blob/frontend/docs/DEMO_API.md#L1-L108), [административный UI](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/admin.js#L1-L348).
-- [Существующая базовая архитектура](../../README.md) и [карта 57 методов](../../api-mapping.md) — **не изменялись**; расширение размещено отдельно.
+- [Обновлённая Go/PostgreSQL-архитектура](../../README.md), [SQL-схема](../../database-schema.sql), [сервисы Go](../../go-service-contracts.md), [OpenAPI](../../openapi.yaml) и [карта DemoAPI → backend](../../api-mapping.md) — единый серверный источник истины.
 
 ## Что читать frontend-разработчику, в этом порядке
 
@@ -30,7 +30,7 @@
 - **Реализовано:** только существующий JavaScript DemoAPI в `frontend`, который пока **не поддерживает** специалистов, кабинеты и роли.
 - **Спроектировано здесь:** будущая демонстрационная модель. Она не обеспечивает настоящую авторизацию, синхронизацию между устройствами и защиту от конкурентной записи в PostgreSQL.
 - Изменять `frontend`, `main` и `ideas` в этой задаче запрещено. Никакого merge.
-- Наличие ссылок на старые backend-документы **не означает**, что их схема готова для нескольких специалистов: перенос на Go/PostgreSQL будет отдельным проектированием.
+- Архитектура Go/PostgreSQL уже спроектирована в основных документах `docs/backend/`, однако серверный код не реализован, миграции не применялись и интеграционные тесты не запускались.
 
 ## Результат
 
