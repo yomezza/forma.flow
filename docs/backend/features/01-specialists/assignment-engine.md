@@ -32,9 +32,10 @@
 ## Точный алгоритм (псевдокод в стиле JS)
 
 ~~~js
-function solveComponent(jobs, specialistPairs, rooms, nodeLimit) {
+function solveComponent(jobs, nodeLimit) {
   // jobs: {id, occupiedStart, occupiedEnd, domain:[[specialistId, roomId], ...]}
-  // Выбор ресурса может отличаться для разных заявок одного дня.
+  // Чистая функция: домены построены предварительно из опубликованных правил.
+  const jobsById = new Map(jobs.map(job => [job.id, job]));
   const chosen = new Map();
   let examined = 0;
 
@@ -57,24 +58,26 @@ function solveComponent(jobs, specialistPairs, rooms, nodeLimit) {
     if (!options[0].valid.length) return {result:'UNSAT'};
     const {job,valid} = options[0];
 
+    let hadUnknown = false;
     for (const pair of valid) {
       chosen.set(job.id,pair);
       const rest = unassigned.filter(x => x.id !== job.id);
       // forward-check: у каждой оставшейся задачи должна остаться хотя бы одна пара
       if (rest.every(x => x.domain.some(p => consistent(x,p)))) {
         const out = dfs(rest);
-        if (out.result==='SAT' || out.result==='UNKNOWN') return out;
+        if (out.result==='SAT') return out;
+        if (out.result==='UNKNOWN') hadUnknown = true;
       }
       chosen.delete(job.id);
     }
-    return {result:'UNSAT'};
+    return {result: hadUnknown ? 'UNKNOWN' : 'UNSAT'};
   }
   const outcome=dfs(jobs);
   return {outcome, examinedNodes:examined};
 }
 ~~~
 
-`jobsById` — локальная map, построенная из всех `jobs`. Для закреплённой заявки `domain` имеет только пары с закреплённым специалистом/кабинетом, а не варианты для молчаливого переназначения. Если закреплён только специалист, кабинет выбирается из совместимых вариантов; если закреплён только кабинет — специалист из подходящих.
+`jobsById` — локальная map, построенная из всех `jobs`. Для закреплённой заявки `domain` имеет только пары с закреплённым специалистом/кабинетом, а не варианты для молчаливого переназначения. В сохранённом `booking` пара `specialistId/roomId` всегда **оба NULL либо оба заполнены**; частичное закрепление хранить нельзя. В предпросмотре назначение может прийти с `roomId:null` — это **запрос автоматического подбора**, а не частично сохранённая пара.
 
 **Важное исправление для разработки:** при возврате `UNKNOWN` из одной ветви поиск можно продолжить по другим, но если ни одна не дала `SAT`, итог всё равно `UNKNOWN`, а не `UNSAT`; если найден `SAT`, его можно вернуть сразу. При лимите узлов нельзя выдавать ложный отказ «точно нет вместимости» — это отдельный `CAPACITY_CHECK_LIMIT`.
 

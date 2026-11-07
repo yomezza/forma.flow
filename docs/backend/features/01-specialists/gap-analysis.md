@@ -1,6 +1,6 @@
 # Проверка существующего frontend и пробелы для идеи 01
 
-Аудит: ветка [`frontend`](https://github.com/yomezza/forma.flow/tree/frontend) на коммите [1bdc8c63](https://github.com/yomezza/forma.flow/commit/1bdc8c63eb0db12445e4a6dc0bf717967df0d9cf). Целевое требование: [идея 01](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md). Go/PostgreSQL намеренно вне объёма задачи.
+Исходный аудит: ветка [`frontend`](https://github.com/yomezza/forma.flow/tree/frontend) на коммите [1bdc8c63](https://github.com/yomezza/forma.flow/commit/1bdc8c63eb0db12445e4a6dc0bf717967df0d9cf); дополнительная проверка начатой v4-миграции на [`02be239`](https://github.com/yomezza/forma.flow/commit/02be23938f6861a78781ba4d7039d7e755ccde1d). Целевое требование: [идея 01](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md). Go/PostgreSQL намеренно вне объёма задачи.
 
 | Область | Что реально есть сейчас | Что добавить / изменить в демо |
 |---|---|---|
@@ -31,3 +31,13 @@
 5. Текущий `getBookingWarnings` вычисляет «Вне графика». Добавить **отдельные** коды причин «Требуют внимания», не заменяя старое предупреждение.
 
 Исходное утверждённое правило: [назначения и ограничения](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L15-L26); [роли и завершение](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L36-L52).
+
+### Блокеры в новой базе frontend после коммита `02be239`
+
+- [`migrate` создаёт `version:4`](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L94-L116), а [`validate` проверяет `db.version===3`](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L183-L201). Это несовместимые условия; исправить до добавления UI.
+- [`read` фиксирует факт миграции лишь для `version<3`](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L207-L215); корректно отслеживать любое обновление до v4 и сохранять только после полной валидации.
+- Инициализированные [массивы специалистов, кабинетов и квалификаций пусты](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L100-L112). Предусмотреть безопасный seed минимальной рабочей конфигурации по [demo-data-migration.md](demo-data-migration.md).
+- [Старая проверка уникальности телефона и сквозного непересечения всех booking](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L183-L201) не соответствует новым правилам; заменить по [доменным инвариантам](domain-rules.md).
+- [`createBookingRequest` по-прежнему auto-links клиента по телефону](https://github.com/yomezza/forma.flow/blob/frontend/dist/js/demo-api.js#L326-L335) и сохраняет старое бронирование одного кабинета; заменить.
+
+Точный [план фронтендера](frontend-handoff.md) и [69 проверок приёмки](demo-test-cases.md).
