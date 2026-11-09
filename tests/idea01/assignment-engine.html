@@ -46,7 +46,7 @@
         if(FormaAssignmentEngine.solveAssignments(db,{date:candidate.date,candidate,nodeLimit:0}).status!=='UNKNOWN')throw Error('limit was not represented as UNKNOWN');
       }],
       ['one room rejects overlap',()=>{
-        const db=fixture({bookings:[{id:'B1',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'pending_confirmation'}]});
+        const db=fixture({rooms:['R1'],specialists:['S1'],skills:[['S1',['A']]],bookings:[{id:'B1',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'pending_confirmation'}]});
         const result=FormaAssignmentEngine.solveAssignments(db,{date:'2026-11-09',candidate:{id:'B2',serviceId:'A',date:'2026-11-09',time:'10:30',durationMinutes:60,status:'pending_confirmation'}});
         if(result.status!=='UNSAT')throw Error(result.status);
       }],
