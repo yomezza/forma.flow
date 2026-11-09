@@ -176,3 +176,102 @@
     margin-top: 16px;
   }
 }
+
+/* Shared workspace navigation and refinement pass */
+#admin .admin-head{
+  position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;
+  min-height:68px;padding:10px clamp(18px,3vw,44px);
+  border-bottom:1px solid var(--edge);background:var(--paper);
+}
+#admin .admin-identity{margin-right:auto}
+#admin .workspace-switcher{
+  display:flex;align-items:center;gap:3px;min-width:0;
+  padding:3px;border:1px solid var(--edge);border-radius:10px;
+  background:#fffdf8;
+}
+#admin .workspace-switcher button{
+  min-height:36px;padding:7px 11px;border:0;border-radius:7px;
+  background:transparent;color:var(--quiet);font:500 12.5px/1.2 Arial,sans-serif;
+}
+#admin .workspace-switcher button[aria-current=page]{
+  background:var(--green);color:var(--paper);font-weight:600;
+}
+#admin .workspace-switcher button[hidden],#adminNav button[hidden]{display:none}
+#admin .workspace-switcher button.unsaved:after{content:'';display:inline-block;width:6px;height:6px;margin-left:6px;border-radius:50%;background:var(--gold);vertical-align:middle}
+#adminNav button.admin-nav-item{display:flex;align-items:center;gap:10px}
+#adminNav button.admin-nav-item svg{
+  width:17px;height:17px;flex:none;fill:none;stroke:currentColor;
+  stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round;
+}
+#adminNav button.admin-nav-item[aria-current=page]{
+  background:var(--tint);color:var(--green);font-weight:600;
+}
+#admin .admin-body{max-width:none}
+#adminPage{width:min(100%,1160px);margin:0 auto}
+#adminPage>h3{scroll-margin-top:90px}
+#admin .metrics>div,#admin .admin-card,#admin .edit-form,#admin .week{
+  background:#fffdf8;border:1px solid var(--edge);border-radius:10px;
+}
+#admin .metrics>div{min-height:94px;box-shadow:0 1px 2px #26382608}
+#admin .metrics span{line-height:1.45}
+#admin .dash-block{border:1px solid var(--edge);border-radius:10px;padding:15px;background:#fffdf8}
+#admin .dash-block h4{font-size:16px}
+#admin .dashboard-columns{align-items:start}
+#admin .admin-card{padding:11px 12px}
+#admin .admin-card+.admin-card{margin-top:7px}
+#admin .edit-form{padding:16px;gap:12px}
+#admin .edit-form .form-actions{padding-top:4px}
+#admin .field :is(input,select,textarea){background:#fffefa}
+#admin .field :is(input,select,textarea):hover{border-color:color-mix(in srgb,var(--green) 38%,var(--edge))}
+#admin .workspace-section-nav{
+  position:sticky;top:68px;z-index:2;display:flex;gap:6px;flex-wrap:wrap;
+  margin:0 0 18px;padding:8px;border:1px solid var(--edge);border-radius:10px;
+  background:color-mix(in srgb,var(--paper) 95%,white);
+}
+#admin .workspace-section-nav button{min-height:36px;border-color:transparent}
+#admin .workspace-section-nav button:hover{background:var(--tint)}
+#visitor header .public-picker{position:relative;display:block;margin-left:auto;font-size:13px}
+#visitor header .public-picker>summary{
+  list-style:none;display:flex;align-items:center;gap:8px;
+  cursor:pointer;border:1px solid var(--line);border-radius:24px;
+  padding:9px 13px;color:var(--green);white-space:nowrap;
+}
+#visitor header .public-picker>summary::-webkit-details-marker{display:none}
+#visitor header .public-picker>summary:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+#visitor .public-picker:not([open])>.workspace-menu{display:none}
+#visitor header .workspace-menu{
+  position:absolute;top:calc(100% + 9px);right:0;z-index:20;min-width:180px;
+  display:grid;gap:3px;padding:6px;border:1px solid var(--edge);
+  border-radius:10px;background:#fffdf8;box-shadow:0 10px 28px #26382616;
+}
+#visitor header .workspace-menu button{
+  min-height:40px;padding:8px 11px;text-align:left;border:0;border-radius:7px;
+  background:transparent;color:var(--ink);font-size:13px;
+}
+#visitor header .workspace-menu button:hover,#visitor header .workspace-menu button:focus-visible{background:var(--tint)}
+#visitor header .workspace-menu button[hidden]{display:none}
+@media(hover:hover){
+  #admin .workspace-switcher button:not([aria-current=page]):hover{background:var(--tint);color:var(--green)}
+  #adminNav button.admin-nav-item:hover{background:var(--tint)}
+  #admin .admin-card:hover{border-color:color-mix(in srgb,var(--green) 30%,var(--edge))}
+}
+@media(max-width:740px){
+  #admin .admin-head{position:sticky;top:0;flex-wrap:wrap;gap:8px 10px;padding:9px 14px}
+  #admin .admin-identity{flex:1 1 140px}
+  #admin .workspace-switcher{flex:1 1 100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+  #admin .workspace-switcher button{min-height:44px;padding:7px 5px;font-size:12px}
+  #admin .workspace-section-nav{top:0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}
+  #admin .workspace-section-nav button{flex:none;white-space:nowrap}
+}
+@media(max-width:550px){
+  #visitor header{gap:8px;padding-inline:14px}
+  #visitor .brand{font-size:22px;gap:6px;letter-spacing:-.8px}
+  #visitor .brand-symbol{width:25px;height:25px}
+  #visitor header .public-picker>summary{padding:8px 9px;font-size:12px}
+  #visitor header .navcta{padding:8px 10px;font-size:12px;white-space:nowrap}
+  #admin .admin-body{padding-top:16px}
+  #admin .edit-form{padding:12px}
+}
+@media(prefers-reduced-motion:reduce){
+  #admin *,#visitor .workspace-picker *{scroll-behavior:auto!important;transition:none!important;animation:none!important}
+}
