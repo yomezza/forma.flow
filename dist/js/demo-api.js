@@ -259,9 +259,9 @@ const DemoAPI = (() => {
   window.addEventListener('storage',e=>{if(e.key===key || e.key===null) window.dispatchEvent(new Event('forma-change'))});
   return {
     async getVacations(){return read().settings.vacations.sort((a,b)=>a.startDate.localeCompare(b.startDate))},
-    createVacation:(v,confirmedIds=[])=>change(db=>storeVacation(db,null,v,confirmedIds)),
-    updateVacation:(id,v,confirmedIds=[])=>change(db=>storeVacation(db,id,v,confirmedIds)),
-    deleteVacation:id=>change(db=>{find(db.settings.vacations,id);db.settings.vacations=db.settings.vacations.filter(v=>v.id!==id)}),
+    createVacation:(v,confirmedIds=[])=>change(db=>{requireAdmin(db);return storeVacation(db,null,v,confirmedIds)),
+    updateVacation:(id,v,confirmedIds=[])=>change(db=>{requireAdmin(db);return storeVacation(db,id,v,confirmedIds)}),
+    deleteVacation:id=>change(db=>{requireAdmin(db);find(db.settings.vacations,id);db.settings.vacations=db.settings.vacations.filter(v=>v.id!==id)}),
     async isVacationDate(date){check(dateOK(date));return onVacation(read(),date)},
     async getScheduleMode(){return read().schedule.activeMode},
     async getDateStates(a,b,id){
@@ -275,7 +275,7 @@ const DemoAPI = (() => {
     async getPublishedSchedule(a,b){return subset(read().schedule.published,a,b)},
     async getDraftSchedule(a,b){return subset(read().schedule.drafts,a,b)},
     async getDateSchedule(d){const db=read();return {active:effective(db,d),draft:db.schedule.drafts[d]||null,published:db.schedule.published[d]||null}},
-    async getBookingWarnings(){const db=read();return db.bookings.filter(b=>activeRequest(b)&&!fits(db,b,effective(db,b.date))).map(b=>b.id)},
+    async getBookingWarnings(){const db=read();requireAdmin(db);return db.bookings.filter(b=>activeRequest(b)&&!fits(db,b,effective(db,b.date))).map(b=>b.id)},
     async getAttentionItems(){
       const db=read();requireAdmin(db);const items=[];
       for(const booking of db.bookings.filter(row=>['pending_confirmation','confirmed'].includes(row.status))){
@@ -314,9 +314,9 @@ const DemoAPI = (() => {
     getWarning:()=>warning,
     async getServices(){return read().services.sort((a,b)=>a.sortOrder-b.sortOrder)},
     async getServiceById(id){return find(read().services,id)},
-    createService:data=>change(db=>{const row={...data,id:uid()};db.services.push(row);return row}),
-    updateService:(id,data)=>change(db=>Object.assign(find(db.services,id),data,{id})),
-    deleteService:id=>change(db=>{find(db.services,id);db.services=db.services.filter(s=>s.id!==id)}),
+    createService:data=>change(db=>{requireAdmin(db);const row={...data,id:uid()};db.services.push(row);return row}),
+    updateService:(id,data)=>change(db=>{requireAdmin(db);return Object.assign(find(db.services,id),data,{id})}),
+    deleteService:id=>change(db=>{requireAdmin(db);find(db.services,id);db.services=db.services.filter(s=>s.id!==id)}),
     async getMySchedule(){const db=read(),account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId);check(db.demoSession.activeRole==='specialist'&&account?.specialistId,'Требуется роль специалиста.','ROLE_FORBIDDEN');const schedule=db.specialistSchedules.find(row=>row.specialistId===account.specialistId);return {week:schedule?.week||{},overrides:schedule?.overrides||{},approvedAbsences:db.absenceRequests.filter(row=>row.specialistId===account.specialistId&&row.status==='approved').map(({id,kind,scope,startDate,endDate,startTime,endTime})=>({id,kind,scope,startDate,endDate,startTime,endTime}))}},
     async undoMyCompletion(id,{reason=''}={}){return change(db=>{const account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId),booking=find(db.bookings,id);check(db.demoSession.activeRole==='specialist'&&account?.specialistId===booking.completion?.bySpecialistId,'Доступ запрещён.','ROLE_FORBIDDEN');check(booking.status==='completed','Отметка уже отменена.','INVALID_STATUS_TRANSITION');booking.status='confirmed';const at=new Date().toISOString();booking.completion=null;db.auditEvents.push({id:uid(),action:'BOOKING_COMPLETION_REVOKED',bookingId:id,reason:String(reason).slice(0,500),at});return booking})},
     async getMyAbsenceRequests(){const db=read(),account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId);check(db.demoSession.activeRole==='specialist'&&account?.specialistId,'Требуется роль специалиста.','ROLE_FORBIDDEN');return db.absenceRequests.filter(item=>item.specialistId===account.specialistId)},
@@ -409,9 +409,9 @@ const DemoAPI = (() => {
     async getClients(){const db=read();requireAdmin(db);return db.clients},
     async getClientById(id){const db=read();requireAdmin(db);return find(db.clients,id)},
     async findClientByPhone(phone){const db=read();requireAdmin(db);return db.clients.find(c=>c.phoneNormalized===phoneNumber(phone))||null},
-    createClient:data=>change(db=>newClient(db,data)),
+    createClient:data=>change(db=>{requireAdmin(db);return newClient(db,data)}),
     updateClient:(id,data)=>change(db=>{
-      const c=find(db.clients,id),fields=identity({...c,...data,phoneNormalized:data.phoneNormalized??data.phone??c.phoneNormalized});
+      requireAdmin(db);const c=find(db.clients,id),fields=identity({...c,...data,phoneNormalized:data.phoneNormalized??data.phone??c.phoneNormalized});
       return Object.assign(c,fields,{updatedAt:new Date().toISOString()});
     }),
     async getClientBookings(id){const db=read();requireAdmin(db);return db.bookings.filter(b=>b.clientId===id)},
@@ -424,31 +424,31 @@ const DemoAPI = (() => {
         clientId:null,specialistId:null,roomId:null,assignmentUpdatedAt:null,completion:null,clientName:fields.fullName,clientPhone:fields.phoneNormalized,status:'pending_confirmation',createdAt:now,updatedAt:now};
       db.bookings.push(request);return request;
     }),
-    confirmBooking:id=>change(db=>{const b=find(db.bookings,id);check(b.clientId&&db.clients.some(c=>c.id===b.clientId),'Сначала привяжите карточку клиента.','CLIENT_LINK_REQUIRED');return transition(db,id,'confirmed')}),
+    confirmBooking:id=>change(db=>{requireAdmin(db);const b=find(db.bookings,id);check(b.clientId&&db.clients.some(c=>c.id===b.clientId),'Сначала привяжите карточку клиента.','CLIENT_LINK_REQUIRED');return transition(db,id,'confirmed')}),
     async findClientsByPhone(phone){const db=read();requireAdmin(db);const normalized=phoneNumber(phone);return db.clients.filter(c=>c.phoneNormalized===normalized)},
     assignBookingClient:(id,{clientId,newClient:clientData}={})=>change(db=>{
-      const booking=find(db.bookings,id);
+      requireAdmin(db);const booking=find(db.bookings,id);
       const client=clientId?find(db.clients,clientId):clientData?newClient(db,clientData):null;
       check(client,'Выберите или создайте карточку клиента.');
       booking.clientId=client.id;
       db.auditEvents.push({id:uid(),action:'CLIENT_LINKED',bookingId:id,clientId:client.id,at:new Date().toISOString()});
       return booking;
     }),
-    cancelBooking:(id,note)=>change(db=>transition(db,id,'cancelled',note)),
+    cancelBooking:(id,note)=>change(db=>{requireAdmin(db);return transition(db,id,'cancelled',note)}),
     async completeBooking(){throw Object.assign(new Error('Завершить запись может только назначенный специалист после окончания сеанса.'),{code:'ROLE_FORBIDDEN'})},
     restoreBooking:id=>change(db=>{
-      const b=find(db.bookings,id);check(b.status==='cancelled');
+      requireAdmin(db);const b=find(db.bookings,id);check(b.status==='cancelled');
       check(available(db,b.date,b.serviceId).includes(b.time)&&fits(db,b,effective(db,b.date)),'Время недоступно для восстановления.');
       b.status='pending_confirmation';b.updatedAt=new Date().toISOString();delete b.confirmedAt;return b;
     }),
     updateBooking:(id,{status})=>change(db=>{check(status!=='completed','Завершение доступно только назначенному специалисту.','ROLE_FORBIDDEN');return transition(db,id,status)}),
     clearClientsAndBookings:()=>change(db=>{db.bookings=[];db.clients=[]}),
-    deleteBooking:id=>change(db=>{find(db.bookings,id);db.bookings=db.bookings.filter(b=>b.id!==id)}),
+    deleteBooking:id=>change(db=>{requireAdmin(db);find(db.bookings,id);db.bookings=db.bookings.filter(b=>b.id!==id)}),
     async getSettings(){return read().settings},
-    updateSettings:data=>change(db=>(db.settings={...db.settings,...data,palette:{...db.settings.palette,...data.palette}})),
-    resetSettings:()=>change(db=>(db.settings=initialData().settings)),
+    updateSettings:data=>change(db=>{requireAdmin(db);return db.settings={...db.settings,...data,palette:{...db.settings.palette,...data.palette}}}),
+    resetSettings:()=>change(db=>{requireAdmin(db);return db.settings=initialData().settings}),
     async getContent(){return read().content},
-    updateContent:data=>change(db=>Object.assign(db.content,data)),
+    updateContent:data=>change(db=>{requireAdmin(db);return Object.assign(db.content,data)}),
     resetServices:()=>change(db=>(db.services=initialData().services)),
     clearBookings:()=>change(db=>(db.bookings=[])),
     async resetDemoData(){write(migrate(initialData()))},
