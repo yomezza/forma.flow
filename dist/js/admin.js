@@ -355,6 +355,18 @@
       row.append(action(room.isActive?'Отключить':'Включить',()=>SiteAPI.updateRoom(room.id,{isActive:!room.isActive}),null));
       page.append(row);
     }
+    page.append(element('h3','Заявки на отсутствие'));
+    const requests=await SiteAPI.getAbsenceRequests({status:'pending'});
+    if(!requests.length)page.append(element('p','Новых заявок нет.'));
+    for(const request of requests){
+      const profile=profiles.find(item=>item.id===request.specialistId);
+      const row=card(profile?.fullName||'Специалист',`${request.startDate} — ${request.endDate} · ${request.scope==='partial_day'?`${request.startTime}–${request.endTime}`:'полный день'}${request.reason?' · '+request.reason:''}`);
+      row.append(button('Утвердить',async()=>{
+        try{const preview=await SiteAPI.previewAbsenceApproval(request.id);const ack=preview.conflicts.map(item=>item.bookingId);if(preview.requiresConfirmation&&!confirm('Есть конфликтующие записи. Сохранить отсутствие и отметить их для переназначения?'))return;await SiteAPI.approveAbsence(request.id,{expectedRevision:preview.revision,acknowledgedBookingIds:ack});await show(current)}catch(error){message(error.message)}
+      },'admin-action'));
+      row.append(button('Отклонить',async()=>{const reason=prompt('Укажите причину отказа');if(reason===null)return;try{await SiteAPI.rejectAbsence(request.id,{reason});await show(current)}catch(error){message(error.message)}},'admin-action'));
+      page.append(row);
+    }
   }
   const views=[overview,bookings,clients,services,schedule,content,appearance,demo,specialists];
   async function show(index){
