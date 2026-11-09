@@ -1,8 +1,8 @@
 (() => {
   if(!APP_CONFIG.demoMode) return;
   const dialog=$('admin'),page=$('adminPage'),trigger=$('adminOpen');
-  const sections=['Обзор','Записи','Клиенты','Услуги','Расписание','Содержимое сайта','Оформление','Демо-настройки','Специалисты'];
-  const keys=['overview','bookings','clients','services','schedule','content','appearance','demo','specialists'];
+  const sections=['Обзор','Записи','Клиенты','Услуги','Расписание','Содержимое сайта','Оформление','Демо-настройки','Специалисты','Кабинет специалиста'];
+  const keys=['overview','bookings','clients','services','schedule','content','appearance','demo','specialists','specialist-workspace'];
   const statuses={pending_confirmation:'Необходимо подтверждение',confirmed:'Подтверждена',completed:'Завершена',cancelled:'Отменена'};
   let current=0,generation=0,restoreTheme,publicScroll=0,switching=false;
   const visitor=$('visitor'),motion=()=>!matchMedia('(prefers-reduced-motion:reduce)').matches&&!document.documentElement.classList.contains('no-motion');
@@ -368,13 +368,51 @@
       page.append(row);
     }
   }
-  const views=[overview,bookings,clients,services,schedule,content,appearance,demo,specialists];
+  async function specialistWorkspace(){
+    page.append(element('h3','Кабинет специалиста'));
+    const profile=(await SiteAPI.getDemoAccounts())[0];
+    page.append(element('p','Демо-режим. Специалист видит только назначенные ему записи.'));
+    page.append(button('Перейти в режим специалиста',async()=>{try{await SiteAPI.switchDemoRole('specialist');await renderSpecialistWorkspace()}catch(error){message(error.message)}},'admin-action'));
+    const refresh=async()=>renderSpecialistWorkspace();
+    async function renderSpecialistWorkspace(){
+      page.replaceChildren(element('h3','Мои записи'));
+      page.append(button('Вернуться в режим администратора',async()=>{try{await SiteAPI.switchDemoRole('admin');await show(9)}catch(error){message(error.message)}},'admin-action'));
+      try{
+        const bookings=await SiteAPI.getMyBookings();
+        for(const booking of bookings){
+          const row=card(booking.clientName,`${booking.date} · ${booking.time} · ${booking.serviceName} · ${booking.status==='pending_confirmation'?'Ожидает подтверждения':statuses[booking.status]}`);
+          if(booking.status==='confirmed')row.append(button('Завершить',async()=>{try{await SiteAPI.markMyBookingCompleted(booking.id);await refresh()}catch(error){message(error.message)}},'admin-action'));
+          if(booking.status==='completed')row.append(button('Отменить отметку',async()=>{try{await SiteAPI.undoMyCompletion(booking.id);await refresh()}catch(error){message(error.message)}},'admin-action'));
+          page.append(row);
+        }
+        page.append(element('h3','Мой график'));
+        const schedule=await SiteAPI.getMySchedule();
+        page.append(element('p',`Рабочих дней в неделе: ${Object.values(schedule.week).filter(intervals=>intervals.length).length}. Утверждённых периодов отсутствия: ${schedule.approvedAbsences.length}.`));
+        page.append(element('h3','Заявка на отсутствие'));
+        const form=element('form',undefined,'edit-form');
+        inputField(form,'Дата начала','startDate','date','',{required:true});
+        inputField(form,'Дата окончания','endDate','date','',{required:true});
+        inputField(form,'Тип','kind','select','vacation',{choices:[['vacation','Отпуск'],['day_off','Выходной']]});
+        inputField(form,'Причина','reason','text','',{required:false,maxLength:500});
+        const submit=element('button','Отправить заявку','btn');submit.type='submit';form.append(submit);
+        form.onsubmit=async event=>{event.preventDefault();try{await SiteAPI.submitMyAbsence({kind:form.elements.kind.value,scope:'full_days',startDate:form.elements.startDate.value,endDate:form.elements.endDate.value,reason:form.elements.reason.value});await refresh()}catch(error){message(error.message)}};
+        page.append(form);
+        page.append(element('h3','Мои заявки'));
+        for(const request of await SiteAPI.getMyAbsenceRequests()){
+          const row=card(`${request.startDate} — ${request.endDate}`,request.status);
+          if(request.status==='pending')row.append(button('Отозвать',async()=>{try{await SiteAPI.withdrawMyAbsence(request.id);await refresh()}catch(error){message(error.message)}},'admin-action'));
+          page.append(row);
+        }
+      }catch(error){message(error.message)}
+    }
+  }
+  const views=[overview,bookings,clients,services,schedule,content,appearance,demo,specialists,specialistWorkspace];
   async function show(index){
     const token=++generation;discardPreview();current=index;message('');
     $('adminSection').textContent=index===0?'Обзор кабинета':sections[index];
     [...$('adminNav').children].forEach((b,i)=>b.setAttribute('aria-current',i===index?'page':'false'));
     try{
-      const data=index===7?null:await SiteAPI.exportData();
+      const data=index===7||index===9?null:await SiteAPI.exportData();
       if(data)data.warnings=await SiteAPI.getBookingWarnings();
       if(token!==generation||dialog.hidden)return;
       page.replaceChildren();
