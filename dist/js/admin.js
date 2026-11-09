@@ -147,6 +147,19 @@
       if(b.confirmedAt)more.append(element('p','Подтверждена '+stamp(b.confirmedAt)));
       if(b.cancelNote)more.append(element('p',b.cancelNote));
       if(client)more.append(button('Карточка клиента',()=>{profileId=client.id;show(2)},'admin-action'));
+      if(!b.clientId&&b.clientPhone)more.append(button('Связать карточку клиента',async()=>{
+        try{
+          const matches=await SiteAPI.findClientsByPhone(b.clientPhone);
+          const options=matches.map((item,index)=>`${index+1}. ${item.fullName} · ${item.id}`).join('\\n');
+          const choice=prompt((matches.length?`Найдены карточки:\\n${options}\\n`:'Карточек с этим номером пока нет.\\n')+'Введите номер варианта или «новый»:');
+          if(choice===null)return;
+          const index=Number(choice)-1;
+          if(Number.isInteger(index)&&index>=0&&index<matches.length)await SiteAPI.assignBookingClient(b.id,{clientId:matches[index].id});
+          else if(choice.trim().toLowerCase()==='новый')await SiteAPI.assignBookingClient(b.id,{newClient:{fullName:b.clientName||b.name,phone:b.clientPhone}});
+          else return;
+          show(1);
+        }catch(error){message(error.message)}
+      },'admin-action'));
       const assignedSpecialist=data.specialists?.find(item=>item.id===b.specialistId),assignedRoom=data.rooms?.find(item=>item.id===b.roomId);
       if(b.specialistId)more.append(element('p',`Исполнитель: ${assignedSpecialist?.fullName||'Профиль недоступен'} · ${assignedRoom?.name||'Кабинет не назначен'}`));
       if(['pending_confirmation','confirmed'].includes(b.status))more.append(button('Подобрать назначение',async()=>{
@@ -167,7 +180,7 @@
         if(appointment(b)>Date.now()&&appointment(b)-Date.now()<86400000)more.append(element('p','До сеанса меньше суток.'));
         bar.append(action('Подтвердить запись',()=>SiteAPI.confirmBooking(b.id)));
       }
-      if(b.status==='confirmed')bar.append(action('Завершить',()=>SiteAPI.completeBooking(b.id)));
+      if(b.status==='confirmed'&&b.specialistId)more.append(element('p','Завершить сеанс может назначенный специалист после окончания.'));
       if(['pending_confirmation','confirmed'].includes(b.status))bar.append(button('Отменить запись',()=>{const note=prompt('Отменить запись? При желании укажите причину.','');if(note!==null)save(()=>SiteAPI.cancelBooking(b.id,note))},'admin-action danger'));
       if(b.status==='cancelled')bar.append(action('Восстановить',()=>SiteAPI.restoreBooking(b.id),'Проверить доступность и восстановить запись?'));
       bar.append(action('Удалить',()=>SiteAPI.deleteBooking(b.id),'Удалить запись из истории?','danger'));
