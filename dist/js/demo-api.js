@@ -388,7 +388,25 @@ const DemoAPI = (() => {
     async getSpecialistSchedule(id){return read().specialistSchedules.find(row=>row.specialistId===id)||null},
     setSpecialistSchedule:(id,data)=>change(db=>{requireAdmin(db);const row=db.specialistSchedules.find(item=>item.specialistId===id);check(row,'График специалиста не найден.','NOT_FOUND');if(data.expectedRevision!==undefined)check(data.expectedRevision===db.revision,'Данные изменились, обновите карточку.','STALE_REVISION');row.week=data.week;row.overrides=data.overrides||row.overrides;row.revision++;return {specialistId:id,revision:row.revision,warnings:[]}}),
     async getRoomsAndServicesForSpecialist(id){const db=read();return db.specialistServices.filter(row=>row.specialistId===id).map(row=>db.services.find(service=>service.id===row.serviceId)).filter(Boolean)},
-    async getDemoAccounts(){return read().accounts.map(({id,login,displayName,roles,state,mustCompleteFirstDemoLogin})=>({id,login,displayName,roles,state,mustCompleteFirstDemoLogin}))},
+    async getDemoAccounts(){const db=read();requireAdmin(db);return db.accounts.map(({id,login,displayName,roles,state,mustCompleteFirstDemoLogin})=>({id,login,displayName,roles,state,mustCompleteFirstDemoLogin}))},
+    inviteDemoAccount:({displayName,login,roles=['specialist'],specialistId}={})=>change(db=>{
+      requireAdmin(db);check(str(String(displayName||'').trim(),120)&&str(String(login||'').trim(),80),'Укажите имя и учебный логин.');
+      check(Array.isArray(roles)&&roles.length>0&&roles.every(role=>['admin','specialist'].includes(role)),'Укажите допустимые демо-роли.');
+      if(roles.includes('specialist'))find(db.specialists,specialistId);
+      check(!db.accounts.some(account=>account.login===login),'Такой учебный логин уже существует.');
+      const account={id:uid(),login:String(login).trim(),displayName:String(displayName).trim(),roles:[...new Set(roles)],specialistId:specialistId||null,state:'active',mustCompleteFirstDemoLogin:true};
+      db.accounts.push(account);
+      return {accountId:account.id,temporaryLogin:account.login,temporaryDemoCode:Math.random().toString(36).slice(2,10).toUpperCase()};
+    }),
+    async completeFirstDemoLogin(){return change(db=>{const account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId);check(account?.mustCompleteFirstDemoLogin,'Первый демо-вход не требуется.','INVALID_STATUS_TRANSITION');account.mustCompleteFirstDemoLogin=false;return {firstDemoLoginRequired:false}})},
+    async getMyReassignmentEvents(){
+      const db=read(),account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId);
+      check(db.demoSession.activeRole==='specialist'&&account?.specialistId,'Требуется роль специалиста.','ROLE_FORBIDDEN');
+      return db.assignmentEvents.filter(event=>event.fromSpecialistId===account.specialistId||event.toSpecialistId===account.specialistId).map(event=>{
+        const booking=db.bookings.find(row=>row.id===event.bookingId);
+        return {id:event.id,bookingId:event.bookingId,at:event.at,date:booking?.date||null,time:booking?.time||null,serviceName:booking?.name||null,assigned:event.toSpecialistId===account.specialistId};
+      });
+    },
     async switchDemoRole(role){return change(db=>{const account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId);check(account&&account.roles.includes(role),'Роль недоступна.','ROLE_FORBIDDEN');db.demoSession.activeRole=role;return {accountId:account.id,activeRole:role}})},
     async selectDemoAccount(accountId){return change(db=>{const account=find(db.accounts,accountId);db.demoSession.activeAccountId=account.id;db.demoSession.activeRole=account.roles.includes('admin')?'admin':'specialist';return {accountId:account.id,activeRole:db.demoSession.activeRole,firstDemoLoginRequired:account.mustCompleteFirstDemoLogin}})},
     async getMyBookings(){const db=read(),account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId);check(db.demoSession.activeRole==='specialist'&&account?.specialistId,'Требуется роль специалиста.','ROLE_FORBIDDEN');return db.bookings.filter(b=>b.specialistId===account.specialistId&&['pending_confirmation','confirmed','completed'].includes(b.status)).map(({id,clientName,serviceId,name,date,time,durationMinutes,status,roomId})=>({id,clientName,serviceId,serviceName:name,date,time,durationMinutes,status,roomName:db.rooms.find(r=>r.id===roomId)?.name||null}))},
