@@ -492,7 +492,7 @@
       row.append(button('Утвердить',async()=>{
         try{const preview=await SiteAPI.previewAbsenceApproval(request.id);const ack=preview.conflicts.map(item=>item.bookingId);if(preview.requiresConfirmation&&!confirm('Есть конфликтующие записи. Сохранить отсутствие и отметить их для переназначения?'))return;await SiteAPI.approveAbsence(request.id,{expectedRevision:preview.revision,acknowledgedBookingIds:ack});await show(current)}catch(error){message(error.message)}
       },'admin-action'));
-      row.append(button('Отклонить',async()=>{const reason=prompt('Укажите причину отказа');if(reason===null)return;try{await SiteAPI.rejectAbsence(request.id,{reason});await show(current)}catch(error){message(error.message)}},'admin-action'));
+      row.append(button('Отклонить',async()=>{const reason=prompt('Укажите причину отказа');if(reason===null)return;try{const preview=await SiteAPI.previewAbsenceApproval(request.id);await SiteAPI.rejectAbsence(request.id,{reason,expectedRevision:preview.revision});await show(current)}catch(error){message(error.message)}},'admin-action'));
       page.append(row);
     }
   }
