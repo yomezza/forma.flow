@@ -3,7 +3,6 @@
   const minute = value => Number(value.slice(0, 2)) * 60 + Number(value.slice(3));
   const dayOfWeek = date => new Date(date + 'T12:00:00').getDay();
   const overlaps = (a, b) => a.start < b.end && b.start < a.end;
-  const key = pair => pair.specialistId + '\\u0000' + pair.roomId;
 
   function intervalsFor(db, specialistId, date) {
     const schedule = db.specialistSchedules.find(row => row.specialistId === specialistId);
@@ -52,7 +51,8 @@
       domains.set(booking.id, pairs);
     }
 
-    const occupied = new Map();
+    const occupiedSpecialists = new Map();
+    const occupiedRooms = new Map();
     let examinedNodes = 0;
     const allocation = {};
     const ordered = [...bookings].sort((a, b) => (domains.get(a.id).length - domains.get(b.id).length) || a.id.localeCompare(b.id));
@@ -63,16 +63,20 @@
       const start = minute(booking.time);
       const end = start + booking.durationMinutes + breakMinutes;
       for (const pair of domains.get(booking.id)) {
-        const pairKey = key(pair);
-        const list = occupied.get(pairKey) || [];
-        if (list.some(range => overlaps({ start, end }, range))) continue;
-        list.push({ start, end });
-        occupied.set(pairKey, list);
+        const specialistRanges = occupiedSpecialists.get(pair.specialistId) || [];
+        const roomRanges = occupiedRooms.get(pair.roomId) || [];
+        if (specialistRanges.some(range => overlaps({ start, end }, range)) ||
+            roomRanges.some(range => overlaps({ start, end }, range))) continue;
+        specialistRanges.push({ start, end });
+        roomRanges.push({ start, end });
+        occupiedSpecialists.set(pair.specialistId, specialistRanges);
+        occupiedRooms.set(pair.roomId, roomRanges);
         allocation[booking.id] = pair;
         const outcome = search(index + 1);
         if (outcome === true) return true;
         delete allocation[booking.id];
-        list.pop();
+        specialistRanges.pop();
+        roomRanges.pop();
         if (outcome === null) return null;
       }
       return false;
