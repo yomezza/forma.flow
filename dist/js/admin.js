@@ -391,7 +391,7 @@
     const refresh=async()=>renderSpecialistWorkspace();
     async function renderSpecialistWorkspace(){
       page.replaceChildren(element('h3','Мои записи'));
-      page.append(button('Вернуться в режим администратора',async()=>{try{await SiteAPI.switchDemoRole('admin');await show(9)}catch(error){message(error.message)}},'admin-action'));
+      page.append(button('Вернуться в режим администратора',async()=>{try{await SiteAPI.switchDemoRole('admin');await show(0)}catch(error){message(error.message)}},'admin-action'));
       try{
         const bookings=await SiteAPI.getMyBookings();
         for(const booking of bookings){
