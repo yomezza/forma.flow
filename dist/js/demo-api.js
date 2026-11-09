@@ -379,20 +379,20 @@ const DemoAPI = (() => {
       const db=read();requireAdmin(db);const booking=find(db.bookings,id),candidates=[];
       for(const specialist of db.specialists.filter(row=>row.state==='active'&&db.specialistServices.some(link=>link.specialistId===row.id&&link.serviceId===booking.serviceId))){
         for(const room of db.rooms.filter(row=>row.isActive)){
-          const outcome=FormaAssignmentEngine.solveAssignments(db,{date:booking.date,fixedOverrides:{[id]:{specialistId:specialist.id,roomId:room.id}}});
+          const outcome=FormaAssignmentEngine.solveAssignments(db,{date:booking.date,anchorBookingId:id,fixedOverrides:{[id]:{specialistId:specialist.id,roomId:room.id}}});
           if(outcome.feasible)candidates.push({specialistId:specialist.id,roomId:room.id});
         }
       }
       return {revision:db.revision,candidates};
     },
     async previewBookingAssignment(id,{specialistId,roomId=null}={}){
-      const db=read();requireAdmin(db);const booking=find(db.bookings,id),outcome=FormaAssignmentEngine.solveAssignments(db,{date:booking.date,fixedOverrides:{[id]:{specialistId,roomId}}});
+      const db=read();requireAdmin(db);const booking=find(db.bookings,id),outcome=FormaAssignmentEngine.solveAssignments(db,{date:booking.date,anchorBookingId:id,fixedOverrides:{[id]:{specialistId,roomId}}});
       return {allowed:outcome.feasible,revision:db.revision,specialistId,roomId,reason:outcome.reason,affectedBookingIds:outcome.affectedBookingIds};
     },
     assignBooking:(id,{specialistId,roomId=null,expectedRevision,acknowledgedBookingIds=[]}={})=>change(db=>{
       requireAdmin(db);if(expectedRevision!==undefined)check(expectedRevision===db.revision,'Данные изменились. Повторите предпросмотр.','STALE_REVISION');
       const booking=find(db.bookings,id),before={specialistId:booking.specialistId,roomId:booking.roomId};
-      const outcome=FormaAssignmentEngine.solveAssignments(db,{date:booking.date,fixedOverrides:{[id]:{specialistId,roomId}}});
+      const outcome=FormaAssignmentEngine.solveAssignments(db,{date:booking.date,anchorBookingId:id,fixedOverrides:{[id]:{specialistId,roomId}}});
       check(outcome.feasible,'Назначение конфликтует с ресурсами или другими заявками.','DIRECT_RESOURCE_CONFLICT');
       booking.specialistId=specialistId;booking.roomId=roomId||outcome.allocations[id]?.roomId||null;booking.assignmentUpdatedAt=new Date().toISOString();
       db.assignmentEvents.push({id:uid(),bookingId:id,at:booking.assignmentUpdatedAt,fromSpecialistId:before.specialistId,toSpecialistId:booking.specialistId,fromRoomId:before.roomId,toRoomId:booking.roomId});
