@@ -108,6 +108,7 @@ async function run() {
   assert.equal((await api.getMyDemoAccount()).activeRole, 'specialist');
   await api.switchDemoRole('admin');
   const room = await api.createRoom({ name: 'Кабинет 2', sortOrder: 1 });
+  assert.deepEqual([...(await api.getRooms()).map(item => item.id)], ['room-001', room.id]);
   const specialist = await api.createSpecialist({
     fullName: 'Специалист два',
     serviceIds: ['classic'],
@@ -133,6 +134,8 @@ async function run() {
     fullName: 'Клиент Второй',
     phone: '+79992222222'
   });
+  const orderedBookings = await api.getBookings();
+  assert.deepEqual([...orderedBookings], [...orderedBookings].sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time) || a.id.localeCompare(b.id)));
   const candidates = await api.getAssignmentCandidates(first.id);
   assert.ok(Array.isArray(candidates.reasons));
   assert.ok(candidates.candidates.every(item => Array.isArray(item.roomIds) && !Object.hasOwn(item, 'roomId')));
