@@ -132,6 +132,16 @@ async function run() {
   assert.equal(afterArchive.requiresReassignment, true);
   console.log('PASS archive preserves assigned booking and raises reassignment warning');
 
+  const roomApi = createApi();
+  const roomBooking = await roomApi.createBookingRequest({ serviceId: 'classic', date: '2026-12-12', time: '09:00', fullName: 'Клиент Кабинет', phone: '+79997777771' });
+  const roomPreview = await roomApi.previewBookingAssignment(roomBooking.id, { specialistId: 'sp-001', roomId: 'room-001' });
+  await roomApi.assignBooking(roomBooking.id, { specialistId: 'sp-001', roomId: 'room-001', expectedRevision: roomPreview.revision });
+  await roomApi.updateRoom('room-001', { isActive: false });
+  assert.equal((await roomApi.exportData()).bookings[0].requiresReassignment, true);
+  await roomApi.updateRoom('room-001', { isActive: true });
+  assert.equal((await roomApi.exportData()).bookings[0].requiresReassignment, false);
+  console.log('PASS room deactivation preserves booking and recalculates warning');
+
   const scheduleApi = createApi();
   const scheduleBooking = await scheduleApi.createBookingRequest({ serviceId: 'classic', date: '2026-12-11', time: '09:00', fullName: 'Клиент График', phone: '+79997777777' });
   let personalSchedule = await scheduleApi.getSpecialistSchedule('sp-001');
@@ -185,13 +195,21 @@ async function run() {
   assert.ok(Array.isArray(candidates.reasons));
   assert.ok(candidates.candidates.every(item => Array.isArray(item.roomIds) && !Object.hasOwn(item, 'roomId')));
 
-  const preview = await api.previewBookingAssignment(first.id, {
+  let preview = await api.previewBookingAssignment(first.id, {
     specialistId: 'sp-001',
     roomId: 'room-001'
   });
   assert.equal(preview.allowed, true);
   assert.equal(preview.requiresConfirmation, true);
   assert.deepEqual([...preview.affectedBookingIds], [displaced.id]);
+
+  const oldPreview = preview;
+  await api.updateSettings({ calendarTitle: 'FORMA TELA · студия' });
+  await assert.rejects(
+    api.assignBooking(first.id, { specialistId: 'sp-001', roomId: 'room-001', expectedRevision: oldPreview.revision, acknowledgedBookingIds: [displaced.id] }),
+    error => error.code === 'STALE_REVISION'
+  );
+  preview = await api.previewBookingAssignment(first.id, { specialistId: 'sp-001', roomId: 'room-001' });
 
   await assert.rejects(
     api.assignBooking(first.id, {
@@ -263,6 +281,23 @@ async function run() {
   const absencePreview = await api.previewAbsenceApproval(absence.id);
   await api.approveAbsence(absence.id, { expectedRevision: absencePreview.revision, acknowledgedBookingIds: [] });
   assert.ok(!(await api.getAvailableSlots(absenceDate, 'classic')).includes('15:00'));
+
+  const conflictAbsenceApi = createApi();
+  const absenceConflictBooking = await conflictAbsenceApi.createBookingRequest({ serviceId: 'classic', date: '2026-12-13', time: '15:00', fullName: 'Клиент Отсутствие', phone: '+79997777772' });
+  const conflictAssignment = await conflictAbsenceApi.previewBookingAssignment(absenceConflictBooking.id, { specialistId: 'sp-001', roomId: 'room-001' });
+  await conflictAbsenceApi.assignBooking(absenceConflictBooking.id, { specialistId: 'sp-001', roomId: 'room-001', expectedRevision: conflictAssignment.revision });
+  await conflictAbsenceApi.switchDemoRole('specialist');
+  const submittedConflictAbsence = await conflictAbsenceApi.submitMyAbsence({ kind: 'vacation', scope: 'partial_day', startDate: '2026-12-13', endDate: '2026-12-13', startTime: '14:00', endTime: '17:00' });
+  await conflictAbsenceApi.switchDemoRole('admin');
+  const conflictPreview = await conflictAbsenceApi.previewAbsenceApproval(submittedConflictAbsence.id);
+  assert.deepEqual([...conflictPreview.conflicts.map(item => item.bookingId)], [absenceConflictBooking.id]);
+  await assert.rejects(conflictAbsenceApi.approveAbsence(submittedConflictAbsence.id, { expectedRevision: conflictPreview.revision, acknowledgedBookingIds: [] }), error => error.code === 'ABSENCE_CONFLICT');
+  await conflictAbsenceApi.approveAbsence(submittedConflictAbsence.id, { expectedRevision: conflictPreview.revision, acknowledgedBookingIds: [absenceConflictBooking.id] });
+  const preservedConflictBooking = (await conflictAbsenceApi.exportData()).bookings[0];
+  assert.equal(preservedConflictBooking.specialistId, 'sp-001');
+  assert.equal(preservedConflictBooking.status, 'pending_confirmation');
+  assert.equal(preservedConflictBooking.requiresReassignment, true);
+  console.log('PASS absence conflict requires exact acknowledgement and preserves booking');
 
   const schedule = await api.getSpecialistSchedule('sp-001');
   assert.equal(schedule.dataRevision, (await api.exportData()).revision);
