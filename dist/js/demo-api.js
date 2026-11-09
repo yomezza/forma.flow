@@ -329,6 +329,30 @@ const DemoAPI = (() => {
     async selectDemoAccount(accountId){return change(db=>{const account=find(db.accounts,accountId);db.demoSession.activeAccountId=account.id;db.demoSession.activeRole=account.roles.includes('admin')?'admin':'specialist';return {accountId:account.id,activeRole:db.demoSession.activeRole,firstDemoLoginRequired:account.mustCompleteFirstDemoLogin}})},
     async getMyBookings(){const db=read(),account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId);check(db.demoSession.activeRole==='specialist'&&account?.specialistId,'Требуется роль специалиста.','ROLE_FORBIDDEN');return db.bookings.filter(b=>b.specialistId===account.specialistId&&['pending_confirmation','confirmed','completed'].includes(b.status)).map(({id,clientName,serviceId,name,date,time,durationMinutes,status,roomId})=>({id,clientName,serviceId,serviceName:name,date,time,durationMinutes,status,roomName:db.rooms.find(r=>r.id===roomId)?.name||null}))},
     async markMyBookingCompleted(id){return change(db=>{const account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId),booking=find(db.bookings,id);check(db.demoSession.activeRole==='specialist'&&account?.specialistId===booking.specialistId,'Доступ запрещён.','ROLE_FORBIDDEN');check(booking.status==='confirmed','Запись нельзя завершить.','INVALID_STATUS_TRANSITION');const end=new Date(booking.date+'T'+booking.time);end.setMinutes(end.getMinutes()+booking.durationMinutes);check(Date.now()>=end.getTime(),'Сеанс ещё не завершён.','NOT_ENDED_YET');booking.status='completed';booking.completion={bySpecialistId:account.specialistId,at:new Date().toISOString()};db.auditEvents.push({id:uid(),action:'BOOKING_COMPLETED',bookingId:id,at:booking.completion.at});return booking})},
+    async getAssignmentCandidates(id){
+      const db=read(),booking=find(db.bookings,id),candidates=[];
+      for(const specialist of db.specialists.filter(row=>row.state==='active'&&db.specialistServices.some(link=>link.specialistId===row.id&&link.serviceId===booking.serviceId))){
+        for(const room of db.rooms.filter(row=>row.isActive)){
+          const outcome=FormaAssignmentEngine.solveAssignments(db,{date:booking.date,fixedOverrides:{[id]:{specialistId:specialist.id,roomId:room.id}}});
+          if(outcome.feasible)candidates.push({specialistId:specialist.id,roomId:room.id});
+        }
+      }
+      return {revision:db.revision,candidates};
+    },
+    async previewBookingAssignment(id,{specialistId,roomId=null}={}){
+      const db=read(),booking=find(db.bookings,id),outcome=FormaAssignmentEngine.solveAssignments(db,{date:booking.date,fixedOverrides:{[id]:{specialistId,roomId}}});
+      return {allowed:outcome.feasible,revision:db.revision,specialistId,roomId,reason:outcome.reason,affectedBookingIds:outcome.affectedBookingIds};
+    },
+    assignBooking:(id,{specialistId,roomId=null,expectedRevision,acknowledgedBookingIds=[]}={})=>change(db=>{
+      if(expectedRevision!==undefined)check(expectedRevision===db.revision,'Данные изменились. Повторите предпросмотр.','STALE_REVISION');
+      const booking=find(db.bookings,id),before={specialistId:booking.specialistId,roomId:booking.roomId};
+      const outcome=FormaAssignmentEngine.solveAssignments(db,{date:booking.date,fixedOverrides:{[id]:{specialistId,roomId}}});
+      check(outcome.feasible,'Назначение конфликтует с ресурсами или другими заявками.','DIRECT_RESOURCE_CONFLICT');
+      booking.specialistId=specialistId;booking.roomId=roomId||outcome.allocations[id]?.roomId||null;booking.assignmentUpdatedAt=new Date().toISOString();
+      db.assignmentEvents.push({id:uid(),bookingId:id,at:booking.assignmentUpdatedAt,fromSpecialistId:before.specialistId,toSpecialistId:booking.specialistId,fromRoomId:before.roomId,toRoomId:booking.roomId});
+      return booking;
+    }),
+    async getBookingAssignmentEvents(id){return read().assignmentEvents.filter(event=>event.bookingId===id)},
     async getBookings(){return read().bookings},
     async getAvailableSlots(date,id){return available(read(),date,id)},
     createBooking:data=>change(db=>{
