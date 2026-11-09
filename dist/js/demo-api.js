@@ -401,7 +401,6 @@ const DemoAPI = (() => {
     createClient:data=>change(db=>newClient(db,data)),
     updateClient:(id,data)=>change(db=>{
       const c=find(db.clients,id),fields=identity({...c,...data,phoneNormalized:data.phoneNormalized??data.phone??c.phoneNormalized});
-      check(!db.clients.some(row=>row.id!==id && row.phoneNormalized===fields.phoneNormalized),'Этот номер уже принадлежит другому клиенту.');
       return Object.assign(c,fields,{updatedAt:new Date().toISOString()});
     }),
     async getClientBookings(id){return read().bookings.filter(b=>b.clientId===id)},
@@ -425,13 +424,13 @@ const DemoAPI = (() => {
       return booking;
     }),
     cancelBooking:(id,note)=>change(db=>transition(db,id,'cancelled',note)),
-    completeBooking:id=>change(db=>transition(db,id,'completed')),
+    async completeBooking(){throw Object.assign(new Error('Завершить запись может только назначенный специалист после окончания сеанса.'),{code:'ROLE_FORBIDDEN'})},
     restoreBooking:id=>change(db=>{
       const b=find(db.bookings,id);check(b.status==='cancelled');
       check(available(db,b.date,b.serviceId).includes(b.time)&&fits(db,b,effective(db,b.date)),'Время недоступно для восстановления.');
-      b.status=b.clientId?'pending_confirmation':'confirmed';b.updatedAt=new Date().toISOString();delete b.confirmedAt;return b;
+      b.status='pending_confirmation';b.updatedAt=new Date().toISOString();delete b.confirmedAt;return b;
     }),
-    updateBooking:(id,{status})=>change(db=>transition(db,id,status)),
+    updateBooking:(id,{status})=>change(db=>{check(status!=='completed','Завершение доступно только назначенному специалисту.','ROLE_FORBIDDEN');return transition(db,id,status)}),
     clearClientsAndBookings:()=>change(db=>{db.bookings=[];db.clients=[]}),
     deleteBooking:id=>change(db=>{find(db.bookings,id);db.bookings=db.bookings.filter(b=>b.id!==id)}),
     async getSettings(){return read().settings},
