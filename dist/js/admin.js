@@ -166,10 +166,11 @@
         try{
           const result=await SiteAPI.getAssignmentCandidates(b.id);
           if(!result.candidates.length){message('Нет допустимых сочетаний специалиста и кабинета.');return}
-          const choices=result.candidates.map((candidate,index)=>{const specialist=data.specialists.find(item=>item.id===candidate.specialistId),room=data.rooms.find(item=>item.id===candidate.roomId);return `${index+1}. ${specialist?.fullName||candidate.specialistId} · ${room?.name||candidate.roomId}`}).join('\\n');
+          const pairs=result.candidates.flatMap(candidate=>candidate.roomIds.map(roomId=>({specialistId:candidate.specialistId,roomId})));
+          const choices=pairs.map((candidate,index)=>{const specialist=data.specialists.find(item=>item.id===candidate.specialistId),room=data.rooms.find(item=>item.id===candidate.roomId);return `${index+1}. ${specialist?.fullName||candidate.specialistId} · ${room?.name||candidate.roomId}`}).join('\\n');
           const selected=Number(prompt('Выберите назначение, введя его номер:\\n'+choices))-1;
-          if(!Number.isInteger(selected)||selected<0||selected>=result.candidates.length)return;
-          const candidate=result.candidates[selected],preview=await SiteAPI.previewBookingAssignment(b.id,candidate);
+          if(!Number.isInteger(selected)||selected<0||selected>=pairs.length)return;
+          const candidate=pairs[selected],preview=await SiteAPI.previewBookingAssignment(b.id,candidate);
           if(!preview.allowed){message('Назначение больше недоступно. Обновите карточку.');return}
           let acknowledgedBookingIds=[];
           if(preview.requiresConfirmation){
