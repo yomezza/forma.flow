@@ -171,7 +171,12 @@
           if(!Number.isInteger(selected)||selected<0||selected>=result.candidates.length)return;
           const candidate=result.candidates[selected],preview=await SiteAPI.previewBookingAssignment(b.id,candidate);
           if(!preview.allowed){message('Назначение больше недоступно. Обновите карточку.');return}
-          await SiteAPI.assignBooking(b.id,{...candidate,expectedRevision:preview.revision});
+          let acknowledgedBookingIds=[];
+          if(preview.requiresConfirmation){
+            if(!confirm('Это назначение затронет неподтверждённые распределения записей: '+preview.affectedBookingIds.join(', ')+'. Продолжить?'))return;
+            acknowledgedBookingIds=preview.affectedBookingIds;
+          }
+          await SiteAPI.assignBooking(b.id,{...candidate,expectedRevision:preview.revision,acknowledgedBookingIds});
           show(1);
         }catch(error){message(error.message)}
       },'admin-action'));
