@@ -108,7 +108,8 @@
       if(!result.items.length){attention.append(element('p','Срочных вопросов нет.'));return}
       for(const item of result.items.slice(0,8)){
         const booking=data.bookings.find(row=>row.id===item.bookingId);
-        const row=card(item.message,booking?`${booking.date} · ${booking.time} · ${booking.clientName||booking.name}`:item.absenceRequestId||'');
+        const detail=[booking?`${booking.date} · ${booking.time} · ${booking.clientName||booking.name}`:item.absenceRequestId||'',item.hint].filter(Boolean).join(' · ');
+        const row=card(item.message,detail);
         if(booking)row.append(button('Открыть запись',()=>openBooking(booking),'admin-action'));
         attention.append(row);
       }
