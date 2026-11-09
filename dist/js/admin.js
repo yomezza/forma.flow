@@ -98,6 +98,16 @@
     for(const [label,n] of [['Требуют подтверждения',pending.length],['Записей сегодня',data.bookings.filter(b=>b.date===today&&b.status!=='cancelled').length],['Подтверждённых впереди',upcoming.filter(b=>b.status==='confirmed').length],['Клиентов',data.clients.length],['Активных услуг',data.services.filter(s=>s.isActive).length]]){
       const tile=element('div');tile.append(element('span',label),element('strong',n));metrics.append(tile);
     }
+    const attention=element('section',undefined,'dash-block');attention.append(element('h4','Требуют внимания'));page.append(attention);
+    SiteAPI.getAttentionItems().then(result=>{
+      if(!result.items.length){attention.append(element('p','Срочных вопросов нет.'));return}
+      for(const item of result.items.slice(0,8)){
+        const booking=data.bookings.find(row=>row.id===item.bookingId);
+        const row=card(item.message,booking?`${booking.date} · ${booking.time} · ${booking.clientName||booking.name}`:item.absenceRequestId||'');
+        if(booking)row.append(button('Открыть запись',()=>openBooking(booking),'admin-action'));
+        attention.append(row);
+      }
+    }).catch(error=>{attention.append(element('p',error.message))});
     const columns=element('div',undefined,'dashboard-columns');page.append(columns);
     for(const [title,records,empty] of [['Ближайшие записи',upcoming,'Предстоящих сеансов пока нет.'],['Требуют подтверждения',[...pending].sort((a,b)=>appointment(a)-appointment(b)),'Все заявки обработаны.']]){
       const block=element('section',undefined,'dash-block');block.append(element('h4',title));columns.append(block);
