@@ -633,3 +633,14 @@
   #admin .admin-identity { flex: 1 1 180px; }
   #admin .workspace-switcher { flex: 1 0 100%; justify-content: flex-end; }
 }
+
+
+/* Allocate a dedicated top-bar row to workspace tabs on standard laptops. */
+@media (min-width: 741px) and (max-width: 1400px) {
+  #admin .admin-head { flex-wrap: wrap; }
+  #admin .workspace-switcher {
+    flex: 1 0 100%;
+    justify-content: center;
+  }
+  #admin .workspace-section-nav { top: 100px; }
+}
