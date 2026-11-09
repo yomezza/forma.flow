@@ -21,7 +21,7 @@
   trigger.hidden=false;trigger.onclick=()=>switchView(true);$('adminClose').onclick=()=>switchView(false);
   async function updateRoleSwitch(){
     if(!roleSwitch)return;
-    try{const account=await SiteAPI.getMyDemoAccount(),available=account.roles.includes('admin')&&account.roles.includes('specialist')&&account.specialistId;roleSwitch.hidden=!available;roleSwitch.textContent=account.activeRole==='admin'?'Кабинет специалиста':'Администратор'}catch{roleSwitch.hidden=true}
+    try{const account=await SiteAPI.getMyDemoAccount(),available=account.roles.includes('admin')&&account.roles.includes('specialist')&&account.specialistId;roleSwitch.hidden=!available;roleSwitch.textContent=account.activeRole==='admin'?'Кабинет специалиста':'Администратор';[...$('adminNav').children].forEach((item,index)=>{item.hidden=account.activeRole==='specialist'&&index!==9})}catch{roleSwitch.hidden=true}
   }
   if(roleSwitch)roleSwitch.onclick=async()=>{try{const account=await SiteAPI.getMyDemoAccount();if(!account.roles.includes('admin')||!account.roles.includes('specialist')||!account.specialistId)return;const next=account.activeRole==='admin'?'specialist':'admin';await SiteAPI.switchDemoRole(next);await updateRoleSwitch();await show(next==='admin'?0:9)}catch(error){message(error.message)}};
   function updateMarks(){
@@ -516,13 +516,15 @@
   }
   async function specialistWorkspace(){
     page.append(element('h3','Кабинет специалиста'));
-    const profile=(await SiteAPI.getDemoAccounts())[0];
+    const activeAccount=await SiteAPI.getMyDemoAccount();
     page.append(element('p','Демо-режим. Специалист видит только назначенные ему записи.'));
-    const accounts=await SiteAPI.getDemoAccounts();
-    const accountSelect=element('select');accountSelect.setAttribute('aria-label','Учебный аккаунт специалиста');
-    for(const account of accounts.filter(item=>item.roles.includes('specialist'))){const option=element('option',account.displayName+' · '+account.login);option.value=account.id;accountSelect.append(option)}
-    page.append(accountSelect);
-    page.append(button('Перейти в режим специалиста',async()=>{try{await SiteAPI.selectDemoAccount(accountSelect.value);await SiteAPI.switchDemoRole('specialist');await renderSpecialistWorkspace()}catch(error){message(error.message)}},'admin-action'));
+    if(activeAccount.activeRole==='admin'){
+      const accounts=await SiteAPI.getDemoAccounts();
+      const accountSelect=element('select');accountSelect.setAttribute('aria-label','Учебный аккаунт специалиста');
+      for(const account of accounts.filter(item=>item.roles.includes('specialist'))){const option=element('option',account.displayName+' · '+account.login);option.value=account.id;accountSelect.append(option)}
+      page.append(accountSelect);
+      page.append(button('Перейти в режим специалиста',async()=>{try{await SiteAPI.selectDemoAccount(accountSelect.value);await SiteAPI.switchDemoRole('specialist');await updateRoleSwitch();await renderSpecialistWorkspace()}catch(error){message(error.message)}},'admin-action'));
+    }else await renderSpecialistWorkspace();
     const refresh=async()=>renderSpecialistWorkspace();
     async function renderSpecialistWorkspace(){
       page.replaceChildren(element('h3','Мои записи'));
