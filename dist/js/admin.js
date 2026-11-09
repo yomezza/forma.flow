@@ -1,6 +1,6 @@
 (() => {
   if(!APP_CONFIG.demoMode) return;
-  const dialog=$('admin'),page=$('adminPage'),trigger=$('adminOpen');
+  const dialog=$('admin'),page=$('adminPage'),trigger=$('adminOpen'),roleSwitch=$('adminRoleSwitch');
   const sections=['Обзор','Записи','Клиенты','Услуги','Расписание','Содержимое сайта','Оформление','Демо-настройки','Специалисты','Кабинет специалиста'];
   const keys=['overview','bookings','clients','services','schedule','content','appearance','demo','specialists','specialist-workspace'];
   const statuses={pending_confirmation:'Необходимо подтверждение',confirmed:'Подтверждена',completed:'Завершена',cancelled:'Отменена'};
@@ -19,6 +19,11 @@
     }finally{switching=false}
   }
   trigger.hidden=false;trigger.onclick=()=>switchView(true);$('adminClose').onclick=()=>switchView(false);
+  async function updateRoleSwitch(){
+    if(!roleSwitch)return;
+    try{const account=await SiteAPI.getMyDemoAccount(),available=account.roles.includes('admin')&&account.roles.includes('specialist')&&account.specialistId;roleSwitch.hidden=!available;roleSwitch.textContent=account.activeRole==='admin'?'Кабинет специалиста':'Администратор'}catch{roleSwitch.hidden=true}
+  }
+  if(roleSwitch)roleSwitch.onclick=async()=>{try{const account=await SiteAPI.getMyDemoAccount();if(!account.roles.includes('admin')||!account.roles.includes('specialist')||!account.specialistId)return;const next=account.activeRole==='admin'?'specialist':'admin';await SiteAPI.switchDemoRole(next);await updateRoleSwitch();await show(next==='admin'?0:9)}catch(error){message(error.message)}};
   function updateMarks(){
     [...$('adminNav').children].forEach((b,i)=>b.classList.toggle('unsaved',AdminDraftStore.keys().some(k=>k.split('/')[0]===keys[i])));
   }
@@ -509,7 +514,6 @@
     const refresh=async()=>renderSpecialistWorkspace();
     async function renderSpecialistWorkspace(){
       page.replaceChildren(element('h3','Мои записи'));
-      page.append(button('Вернуться в режим администратора',async()=>{try{await SiteAPI.selectDemoAccount('acct-owner');await SiteAPI.switchDemoRole('admin');await show(0)}catch(error){message(error.message)}},'admin-action'));
       try{
         const demoAccount=await SiteAPI.getMyDemoAccount();
         if(demoAccount.mustCompleteFirstDemoLogin){
@@ -561,6 +565,7 @@
   const views=[overview,bookings,clients,services,schedule,content,appearance,demo,specialists,specialistWorkspace];
   async function show(index){
     const token=++generation;discardPreview();current=index;message('');
+    await updateRoleSwitch();
     $('adminSection').textContent=index===0?'Обзор кабинета':sections[index];
     [...$('adminNav').children].forEach((b,i)=>b.setAttribute('aria-current',i===index?'page':'false'));
     try{
