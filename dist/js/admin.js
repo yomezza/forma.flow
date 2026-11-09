@@ -385,6 +385,13 @@
     for(const profile of profiles){
       const qualifications=await SiteAPI.getRoomsAndServicesForSpecialist(profile.id);
       const row=card(profile.fullName,`${profile.state==='active'?'Активен':'В архиве'} · ${qualifications.map(item=>item.name).join(', ')||'Услуги не назначены'}`);
+      const profileEdit=element('details');profileEdit.append(element('summary','Профиль и услуги'));
+      const profileForm=formWithSave(async fields=>SiteAPI.updateSpecialist(profile.id,{fullName:fields.fullName.value}));
+      inputField(profileForm,'Имя специалиста','fullName','text',profile.fullName,{required:true,maxLength:120});
+      formActions(profileForm);profileEdit.append(profileForm);bindDraft(profileForm,'specialists/'+profile.id+'/profile');
+      const qualificationForm=formWithSave(async fields=>SiteAPI.setSpecialistServices(profile.id,[...qualificationForm.querySelectorAll('input[name="serviceId"]:checked')].map(input=>input.value)));
+      for(const service of serviceList){const choice=inputField(qualificationForm,service.name+' · '+service.id,'serviceId','checkbox',qualifications.some(item=>item.id===service.id));choice.value=service.id}
+      formActions(qualificationForm);profileEdit.append(qualificationForm);bindDraft(qualificationForm,'specialists/'+profile.id+'/services');row.append(profileEdit);
       const schedule=await SiteAPI.getSpecialistSchedule(profile.id);
       const editSchedule=element('details');
       editSchedule.append(element('summary','Личный недельный график'));
