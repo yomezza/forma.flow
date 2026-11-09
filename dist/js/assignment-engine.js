@@ -22,12 +22,31 @@
     return [{start:settings.start,end:settings.end,step:settings.step}];
   }
 
-  function solveAssignments(db, { date, candidate = null, fixedOverrides = {}, excludedIds = [], nodeLimit = 50000 } = {}) {
-    const bookings = db.bookings.filter(row =>
+  function solveAssignments(db, { date, candidate = null, anchorBookingId = null, fixedOverrides = {}, excludedIds = [], nodeLimit = 50000 } = {}) {
+    let bookings = db.bookings.filter(row =>
       row.date === date && ['pending_confirmation', 'confirmed'].includes(row.status) &&
       !excludedIds.includes(row.id)
     );
     if (candidate) bookings.push({ ...candidate, id: candidate.id || '__candidate__' });
+    const anchorId=candidate?.id||anchorBookingId;
+    if(anchorId&&bookings.some(row=>row.id===anchorId)){
+      const related=new Set([anchorId]);
+      let changed=true;
+      while(changed){
+        changed=false;
+        for(const row of bookings){
+          if(related.has(row.id))continue;
+          const rowStart=minute(row.time),rowEnd=rowStart+row.durationMinutes+(db.settings.breakMinutes||0);
+          for(const connectedId of related){
+            const connected=bookings.find(item=>item.id===connectedId);
+            if(!connected)continue;
+            const connectedStart=minute(connected.time),connectedEnd=connectedStart+connected.durationMinutes+(db.settings.breakMinutes||0);
+            if(overlaps({start:rowStart,end:rowEnd},{start:connectedStart,end:connectedEnd})){related.add(row.id);changed=true;break}
+          }
+        }
+      }
+      bookings=bookings.filter(row=>related.has(row.id));
+    }
     const rooms = db.rooms.filter(room => room.isActive).sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id));
     const specialists = db.specialists.filter(row => row.state === 'active').sort((a, b) => a.id.localeCompare(b.id));
     const breakMinutes = db.settings.breakMinutes || 0;
