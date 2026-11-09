@@ -69,6 +69,23 @@ async function run() {
   assert.equal((await migrationApi.exportData()).revision, stableBeforeInvalidImport.revision);
   console.log('PASS v3 migration, repeated import, and duplicate phone preservation');
 
+  const singleCapacityApi = createApi();
+  const firstRequest = await singleCapacityApi.createBookingRequest({ serviceId: 'classic', date: '2026-12-07', time: '09:00', fullName: 'Клиент Первый', phone: '+79998888881' });
+  const beforeRejectedRequest = await singleCapacityApi.exportData();
+  await assert.rejects(singleCapacityApi.createBookingRequest({ serviceId: 'classic', date: '2026-12-07', time: '09:00', fullName: 'Клиент Второй', phone: '+79998888882' }), error => error.code === 'SLOT_UNAVAILABLE');
+  const afterRejectedRequest = await singleCapacityApi.exportData();
+  assert.equal(afterRejectedRequest.revision, beforeRejectedRequest.revision);
+  assert.equal(afterRejectedRequest.bookings.length, 1);
+  await assert.rejects(singleCapacityApi.confirmBooking(firstRequest.id), error => error.code === 'CLIENT_LINK_REQUIRED');
+  await singleCapacityApi.assignBookingClient(firstRequest.id, { newClient: { fullName: 'Клиент Первый', phone: '+79998888881' } });
+  await singleCapacityApi.confirmBooking(firstRequest.id);
+  const confirmedWithoutSpecialist = (await singleCapacityApi.exportData()).bookings[0];
+  assert.equal(confirmedWithoutSpecialist.status, 'confirmed');
+  assert.equal(confirmedWithoutSpecialist.specialistId, null);
+  const dateStates = await singleCapacityApi.getDateStates('2026-12-07', '2026-12-07');
+  assert.notEqual(dateStates['2026-12-07'], 'full');
+  console.log('PASS repeat slot check, client link gate, and unassigned confirmation');
+
   const attentionApi = createApi();
   const attentionBooking = await attentionApi.createBookingRequest({ serviceId: 'classic', date: '2026-12-04', time: '09:00', fullName: 'Клиент Внимание', phone: '+79995555555' });
   await attentionApi.setSpecialistServices('sp-001', []);
