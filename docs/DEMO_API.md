@@ -105,3 +105,28 @@ Simple использует workDays, start, end, step, breakMinutes, blockedDat
 ## Требования к будущему backend
 
 Сохранить асинхронный контракт и смысл ответов. Операцию «проверить слот + создать/найти клиента + создать заявку + зафиксировать снимок услуги» сделать транзакционной и защищённой от дублей/пересечений. Публикацию диапазона, переключение режима, обновление отпуска и историю изменений тоже выполнять атомарно. Авторизовать административные методы на сервере. Время кабинета, часовой пояс и конфликт между предпросмотром и публикацией должны обрабатываться сервером.
+
+
+## DemoAPI v4 — текущие изменения
+
+Ключ localStorage остаётся `formaTela.demo.v1`, схема данных — `version: 4`. Миграция добавляет `revision`, профили специалистов, кабинеты, расписания, заявки на отсутствие, учебные аккаунты и журналы. При миграции v3 создаётся один активный профиль и один кабинет. Записи из старой базы не получают специалиста задним числом.
+
+Публичная заявка через `createBookingRequest(data)` резервирует время и сохраняет имя и телефон как снимок заявки. `clientId` остаётся `null`. Администратор ищет все карточки с номером через `findClientsByPhone(phone)`, вручную связывает существующую или новую карточку через `assignBookingClient(bookingId, choice)`, затем подтверждает её методом `confirmBooking(bookingId)`. Подтверждение без связанной карточки возвращает `CLIENT_LINK_REQUIRED`. Одинаковый номер допустим у разных карточек клиентов.
+
+Доступные слоты и кандидатные назначения проверяет `FormaAssignmentEngine.solveAssignments`. Matcher учитывает опубликованное расписание студии, график и квалификации специалиста, активность кабинета, утверждённые отсутствия и пересечение занятых интервалов. Черновики advanced-расписания в публичную доступность не входят. При достижении лимита поиска результат `UNKNOWN`, новый слот не предлагается. Назначение выполняется через `getAssignmentCandidates`, `previewBookingAssignment` и `assignBooking` с проверкой `expectedRevision`.
+
+Основные методы v4, доступные в этой итерации:
+
+| Метод | Назначение |
+|---|---|
+| `getSpecialists(options)`, `createSpecialist(data)`, `updateSpecialist(id, data)`, `archiveSpecialist(id)` | Просмотр, создание и архивирование профиля. |
+| `setSpecialistServices(id, serviceIds)`, `getSpecialistSchedule(id)`, `setSpecialistSchedule(id, data)` | Квалификации и личный недельный график. |
+| `getRooms(options)`, `createRoom(data)`, `updateRoom(id, data)` | Управление кабинетами. |
+| `getAssignmentCandidates(id)`, `previewBookingAssignment(id, data)`, `assignBooking(id, data)`, `getBookingAssignmentEvents(id)` | Предпросмотр, сохранение назначения и его история. |
+| `switchDemoRole(role)`, `selectDemoAccount(accountId)`, `getMyBookings()`, `getMySchedule()` | Учебное переключение роли и ограниченные данные специалиста. |
+| `submitMyAbsence(data)`, `getMyAbsenceRequests()`, `withdrawMyAbsence(id)` | Подача и отзыв собственной заявки на отсутствие. |
+| `getAbsenceRequests(options)`, `previewAbsenceApproval(id)`, `approveAbsence(id, data)`, `rejectAbsence(id, data)` | Рассмотрение отсутствий администратором. |
+| `markMyBookingCompleted(id)`, `undoMyCompletion(id, options)` | Отметка о завершении назначенным специалистом и её отмена. |
+| `getAttentionItems()` | Вычисляемые пункты для блока «Требуют внимания». |
+
+Проверки роли в DemoAPI имитируют ограничения интерфейса. Данные localStorage доступны скриптам в браузере, поэтому эти проверки не заменяют серверную авторизацию. Полный контракт v4 и целевые ограничения находятся в документах архитектора в `backend-architecture`. Не все сценарии архитектора реализованы и проверены в текущей версии.
