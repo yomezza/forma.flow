@@ -286,7 +286,7 @@ const DemoAPI = (() => {
       for(const request of db.absenceRequests.filter(row=>row.status==='pending'))items.push({code:'ABSENCE_REVIEW_PENDING',absenceRequestId:request.id,message:'Заявка на отсутствие ожидает решения'});
       return {revision:db.revision,items,counts:{total:items.length}};
     },
-    async getBookingsForDate(d){return read().bookings.filter(b=>b.date===d)},
+    async getBookingsForDate(d){const db=read();requireAdmin(db);return db.bookings.filter(b=>b.date===d)},
     async previewScheduleModeChange(mode,a,b){
       const db=read(),list=dates(a,b),live=db.services.filter(s=>s.isActive);
       const alternate={...db,schedule:{...db.schedule,activeMode:mode}};
@@ -406,16 +406,16 @@ const DemoAPI = (() => {
       const b={...snapshot(find(db.services,data.serviceId)),id:uid(),date:data.date,time:data.time,status:'confirmed'};
       db.bookings.push(b);return b;
     }),
-    async getClients(){return read().clients},
-    async getClientById(id){return find(read().clients,id)},
-    async findClientByPhone(phone){return read().clients.find(c=>c.phoneNormalized===phoneNumber(phone))||null},
+    async getClients(){const db=read();requireAdmin(db);return db.clients},
+    async getClientById(id){const db=read();requireAdmin(db);return find(db.clients,id)},
+    async findClientByPhone(phone){const db=read();requireAdmin(db);return db.clients.find(c=>c.phoneNormalized===phoneNumber(phone))||null},
     createClient:data=>change(db=>newClient(db,data)),
     updateClient:(id,data)=>change(db=>{
       const c=find(db.clients,id),fields=identity({...c,...data,phoneNormalized:data.phoneNormalized??data.phone??c.phoneNormalized});
       return Object.assign(c,fields,{updatedAt:new Date().toISOString()});
     }),
-    async getClientBookings(id){return read().bookings.filter(b=>b.clientId===id)},
-    async getPendingBookings(){return read().bookings.filter(b=>b.status==='pending_confirmation')},
+    async getClientBookings(id){const db=read();requireAdmin(db);return db.bookings.filter(b=>b.clientId===id)},
+    async getPendingBookings(){const db=read();requireAdmin(db);return db.bookings.filter(b=>b.status==='pending_confirmation')},
     createBookingRequest:data=>change(db=>{
       check(available(db,data.date,data.serviceId).includes(data.time),'Это время уже занято. Выберите другое время.','SLOT_UNAVAILABLE');
       const fields=identity(data);
@@ -425,7 +425,7 @@ const DemoAPI = (() => {
       db.bookings.push(request);return request;
     }),
     confirmBooking:id=>change(db=>{const b=find(db.bookings,id);check(b.clientId&&db.clients.some(c=>c.id===b.clientId),'Сначала привяжите карточку клиента.','CLIENT_LINK_REQUIRED');return transition(db,id,'confirmed')}),
-    async findClientsByPhone(phone){const normalized=phoneNumber(phone);return read().clients.filter(c=>c.phoneNormalized===normalized)},
+    async findClientsByPhone(phone){const db=read();requireAdmin(db);const normalized=phoneNumber(phone);return db.clients.filter(c=>c.phoneNormalized===normalized)},
     assignBookingClient:(id,{clientId,newClient:clientData}={})=>change(db=>{
       const booking=find(db.bookings,id);
       const client=clientId?find(db.clients,clientId):clientData?newClient(db,clientData):null;
@@ -452,7 +452,7 @@ const DemoAPI = (() => {
     resetServices:()=>change(db=>(db.services=initialData().services)),
     clearBookings:()=>change(db=>(db.bookings=[])),
     async resetDemoData(){write(migrate(initialData()))},
-    async exportData(){return read()},
+    async exportData(){const db=read();requireAdmin(db);return db},
     async importData(data){const db=migrate(clone(data));validate(db);write(db)}
   };
 })();
