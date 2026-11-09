@@ -259,7 +259,7 @@ const DemoAPI = (() => {
   window.addEventListener('storage',e=>{if(e.key===key || e.key===null) window.dispatchEvent(new Event('forma-change'))});
   return {
     async getVacations(){return read().settings.vacations.sort((a,b)=>a.startDate.localeCompare(b.startDate))},
-    createVacation:(v,confirmedIds=[])=>change(db=>{requireAdmin(db);return storeVacation(db,null,v,confirmedIds)),
+    createVacation:(v,confirmedIds=[])=>change(db=>{requireAdmin(db);return storeVacation(db,null,v,confirmedIds)}),
     updateVacation:(id,v,confirmedIds=[])=>change(db=>{requireAdmin(db);return storeVacation(db,id,v,confirmedIds)}),
     deleteVacation:id=>change(db=>{requireAdmin(db);find(db.settings.vacations,id);db.settings.vacations=db.settings.vacations.filter(v=>v.id!==id)}),
     async isVacationDate(date){check(dateOK(date));return onVacation(read(),date)},
