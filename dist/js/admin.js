@@ -432,7 +432,38 @@
           await show(current);message('Личный график сохранён.');
         }catch(error){message(error.message)}
       };
-      editSchedule.append(scheduleForm);row.append(editSchedule);
+      editSchedule.append(scheduleForm);
+      const exceptions=element('details');exceptions.append(element('summary','Исключения по датам'));
+      for(const [date,rule] of Object.entries(schedule?.overrides||{}).sort(([a],[b])=>a.localeCompare(b))){
+        const exception=card(date,rule.kind==='off'?'Выходной':(rule.intervals||[]).map(item=>item.start+'–'+item.end).join(', ')||'Рабочее время не задано');
+        exception.append(action('Удалить исключение',async()=>{const overrides={...schedule.overrides};delete overrides[date];await SiteAPI.setSpecialistSchedule(profile.id,{week:schedule.week,overrides,expectedRevision:schedule.dataRevision})},`Удалить исключение на ${date}?`,'danger'));exceptions.append(exception);
+      }
+      const overrideForm=element('form',undefined,'edit-form');
+      const overrideDate=inputField(overrideForm,'Дата','overrideDate','date','',{required:true});
+      const overrideKind=inputField(overrideForm,'Правило','overrideKind','select','working',{choices:[['working','Рабочие интервалы'],['off','Выходной']]});
+      const overrideIntervals=element('div',undefined,'specialist-intervals');
+      const addOverrideInterval=(interval={start:'09:00',end:'19:00'})=>{
+        const item=element('div',undefined,'specialist-interval');
+        const start=element('input');start.type='time';start.value=interval.start||'09:00';start.setAttribute('aria-label','Начало интервала исключения');
+        const end=element('input');end.type='time';end.value=interval.end||'19:00';end.setAttribute('aria-label','Конец интервала исключения');
+        item.append(start,end,button('Убрать интервал',()=>item.remove(),'admin-action'));overrideIntervals.append(item);
+      };
+      addOverrideInterval();
+      const intervalControls=element('div');intervalControls.append(overrideIntervals,button('Добавить интервал',()=>addOverrideInterval(),'admin-action'));
+      const toggleOverride=()=>{intervalControls.hidden=overrideKind.value==='off'};overrideKind.addEventListener('change',toggleOverride);toggleOverride();
+      overrideForm.append(intervalControls);
+      overrideForm.onsubmit=async event=>{
+        event.preventDefault();
+        try{
+          const kind=overrideKind.value,intervals=kind==='off'?[]:[...overrideIntervals.querySelectorAll('.specialist-interval')].map(item=>({start:item.querySelector('input').value,end:item.querySelectorAll('input')[1].value}));
+          if(kind==='working'&&(!intervals.length||intervals.some(item=>!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(item.start)||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(item.end)||item.start>=item.end)))throw new Error('Добавьте корректные интервалы рабочего дня.');
+          intervals.sort((a,b)=>a.start.localeCompare(b.start));
+          if(intervals.some((item,index)=>index>0&&intervals[index-1].end>item.start))throw new Error('Интервалы одного дня не должны пересекаться.');
+          const overrides={...(schedule?.overrides||{}),[overrideDate.value]:{kind,intervals}};
+          await SiteAPI.setSpecialistSchedule(profile.id,{week:schedule?.week||{},overrides,expectedRevision:schedule?.dataRevision});await show(current);message('Исключение графика сохранено.');
+        }catch(error){message(error.message)}
+      };
+      const saveOverride=element('button','Сохранить исключение','btn');saveOverride.type='submit';overrideForm.append(saveOverride);exceptions.append(overrideForm);editSchedule.append(exceptions);row.append(editSchedule);
       if(profile.state==='active'){
         row.append(button('Создать демо-доступ',async()=>{
           const login=prompt('Учебный логин для специалиста:');if(!login)return;
