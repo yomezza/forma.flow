@@ -26,8 +26,9 @@
       }],
       ['two specialists and rooms allow parallel bookings',()=>{
         const db=fixture({rooms:['R1','R2'],specialists:['S1','S2'],skills:[['S1',['A']],['S2',['A']]]});
+        db.bookings.push({id:'A1',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'pending_confirmation'});
         const result=FormaAssignmentEngine.solveAssignments(db,{date:'2026-11-09',candidate:{id:'B1',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'pending_confirmation'}});
-        if(result.status!=='SAT'||new Set(Object.values(result.allocations).map(pair=>pair.roomId)).size!==1)throw Error(JSON.stringify(result));
+        if(result.status!=='SAT'||new Set(Object.values(result.allocations).map(pair=>pair.roomId)).size!==2||new Set(Object.values(result.allocations).map(pair=>pair.specialistId)).size!==2)throw Error(JSON.stringify(result));
       }],
       ['MRV search finds specialist with exclusive skill',()=>{
         const db=fixture({rooms:['R1','R2'],specialists:['S1','S2'],skills:[['S1',['A','B']],['S2',['A']]],bookings:[{id:'A1',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'pending_confirmation'}]});
