@@ -161,8 +161,14 @@ async function run() {
   const beforeInvalidSchedule = await api.exportData();
   const badWeek = structuredClone(schedule.week);
   badWeek[1] = [{ start: '12:00', end: '11:00' }];
-  await assert.rejects(api.setSpecialistSchedule('sp-001', { week: badWeek, overrides: schedule.overrides }), error => error.code === 'INVALID_DATABASE');
+  await assert.rejects(api.setSpecialistSchedule('sp-001', { week: badWeek, overrides: schedule.overrides, expectedRevision: beforeInvalidSchedule.revision }), error => error.code === 'INVALID_DATABASE');
   assert.equal((await api.exportData()).revision, beforeInvalidSchedule.revision);
+  const cancelledFixture = await api.exportData();
+  const cancelled = cancelledFixture.bookings.find(item => item.id === completed.id);
+  cancelled.status = 'cancelled';
+  cancelled.completion = null;
+  await api.importData(cancelledFixture);
+  await assert.rejects(api.previewBookingAssignment(cancelled.id, { specialistId: 'sp-001' }), error => error.code === 'INVALID_STATUS_TRANSITION');
   console.log('PASS partial absence, role guards, and schedule validation');
   console.log('PASS specialist mutation privacy DTO');
   console.log('PASS indirect assignment conflict lifecycle');
