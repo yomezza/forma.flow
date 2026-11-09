@@ -311,12 +311,15 @@ const DemoAPI = (() => {
     async getAttentionItems(){
       const db=read();requireAdmin(db);const items=[];
       for(const booking of db.bookings.filter(row=>['pending_confirmation','confirmed'].includes(row.status))){
-        if(!booking.specialistId)items.push({code:'UNASSIGNED_SPECIALIST',bookingId:booking.id,message:'Не назначен специалист'});
-        if(booking.requiresReassignment)items.push({code:'REQUIRES_REASSIGNMENT',bookingId:booking.id,message:'Требуется переназначение'});
-        if(!fits(db,booking,effective(db,booking.date)))items.push({code:'OUTSIDE_STUDIO_SCHEDULE',bookingId:booking.id,message:'Запись вне опубликованного расписания'});
+        if(!booking.specialistId)items.push({code:'UNASSIGNED_SPECIALIST',bookingId:booking.id,severity:'warning',hint:'Администратор может назначить специалиста позже.',message:'Не назначен специалист'});
+        if(booking.requiresReassignment)items.push({code:'REQUIRES_REASSIGNMENT',bookingId:booking.id,severity:'warning',hint:'Назначение не соответствует текущей доступности.',message:'Требуется переназначение'});
+        if(!fits(db,booking,effective(db,booking.date)))items.push({code:'OUTSIDE_STUDIO_SCHEDULE',bookingId:booking.id,severity:'warning',hint:'Проверьте опубликованное расписание студии.',message:'Запись вне опубликованного расписания'});
+        const others=db.bookings.filter(row=>row.date===booking.date&&['pending_confirmation','confirmed'].includes(row.status)&&row.id!==booking.id).map(row=>row.id);
+        const isolated=FormaAssignmentEngine.solveAssignments(db,{date:booking.date,anchorBookingId:booking.id,excludedIds:others,ignoreCapacityExceptions:true});
+        if(!isolated.feasible&&!isolated.uncertain)items.push({code:'NO_AVAILABLE_SPECIALIST',bookingId:booking.id,severity:'warning',hint:'Проверьте компетенции, личный график, утверждённые отсутствия и назначения.',message:'Нет подходящего специалиста'});
       }
-      for(const request of db.absenceRequests.filter(row=>row.status==='pending'))items.push({code:'ABSENCE_REVIEW_PENDING',absenceRequestId:request.id,message:'Заявка на отсутствие ожидает решения'});
-      for(const exception of db.capacityExceptions.filter(row=>row.resolvedAt==null))for(const bookingId of exception.bookingIds)items.push({code:'INDIRECT_ASSIGNMENT_CONFLICT',bookingId,message:'Открытый конфликт распределения'});
+      for(const request of db.absenceRequests.filter(row=>row.status==='pending'))items.push({code:'ABSENCE_REVIEW_PENDING',relatedRequestId:request.id,absenceRequestId:request.id,severity:'warning',hint:'Решение администратора не меняет назначенные записи автоматически.',message:'Заявка на отсутствие ожидает решения'});
+      for(const exception of db.capacityExceptions.filter(row=>row.resolvedAt==null))for(const bookingId of exception.bookingIds)items.push({code:'INDIRECT_ASSIGNMENT_CONFLICT',bookingId,severity:'warning',hint:'Новые записи в этом связанном компоненте заблокированы до разбора.',message:'Открытый конфликт распределения'});
       const byCode={};for(const item of items)byCode[item.code]=(byCode[item.code]||0)+1;
       return {revision:db.revision,items,counts:{byCode,total:items.length}};
     },
