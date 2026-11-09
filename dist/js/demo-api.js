@@ -252,7 +252,7 @@ const DemoAPI = (() => {
     return slots;
   }
   async function change(fn) {
-    const perform=()=>{const db=read(), result=fn(db);write(db);return clone(result??null)};
+    const perform=()=>{const db=read(), result=fn(db);db.revision=(db.revision||0)+1;write(db);return clone(result??null)};
     return globalThis.navigator?.locks ? navigator.locks.request(key,perform) : perform();
   }
   window.addEventListener('storage',e=>{if(e.key===key || e.key===null) window.dispatchEvent(new Event('forma-change'))});
@@ -306,6 +306,25 @@ const DemoAPI = (() => {
     createService:data=>change(db=>{const row={...data,id:uid()};db.services.push(row);return row}),
     updateService:(id,data)=>change(db=>Object.assign(find(db.services,id),data,{id})),
     deleteService:id=>change(db=>{find(db.services,id);db.services=db.services.filter(s=>s.id!==id)}),
+    async getSpecialists({includeArchived=true}={}){return read().specialists.filter(row=>includeArchived||row.state==='active')},
+    createSpecialist:data=>change(db=>{
+      const fullName=String(data.fullName||'').trim();check(str(fullName,120),'Укажите имя специалиста.');
+      const id=uid(),now=new Date().toISOString();
+      const row={id,fullName,state:'active',accountId:null,createdAt:now,archivedAt:null};
+      db.specialists.push(row);
+      db.specialistSchedules.push({specialistId:id,revision:0,week:data.week||{},overrides:{}});
+      for(const serviceId of [...new Set(data.serviceIds||[])]){find(db.services,serviceId);db.specialistServices.push({specialistId:id,serviceId})}
+      return row;
+    }),
+    updateSpecialist:(id,data)=>change(db=>{const row=find(db.specialists,id);const fullName=String(data.fullName??row.fullName).trim();check(str(fullName,120));row.fullName=fullName;return row}),
+    archiveSpecialist:id=>change(db=>{const row=find(db.specialists,id);row.state='archived';row.archivedAt=new Date().toISOString();return row}),
+    async getRooms({includeInactive=false}={}){return read().rooms.filter(room=>includeInactive||room.isActive)},
+    createRoom:data=>change(db=>{const name=String(data.name||'').trim();check(str(name,80));const room={id:uid(),name,isActive:true,sortOrder:num(data.sortOrder??0,0,9999)?(data.sortOrder??0):0};db.rooms.push(room);return room}),
+    updateRoom:(id,data)=>change(db=>{const room=find(db.rooms,id);if(data.name!==undefined){check(str(String(data.name).trim(),80));room.name=String(data.name).trim()}if(typeof data.isActive==='boolean')room.isActive=data.isActive;if(data.sortOrder!==undefined)room.sortOrder=data.sortOrder;return room}),
+    setSpecialistServices:(id,serviceIds)=>change(db=>{find(db.specialists,id);check(Array.isArray(serviceIds));for(const serviceId of serviceIds)find(db.services,serviceId);db.specialistServices=db.specialistServices.filter(row=>row.specialistId!==id);for(const serviceId of [...new Set(serviceIds)])db.specialistServices.push({specialistId:id,serviceId});return {specialistId:id,serviceIds:[...new Set(serviceIds)],revision:db.revision+1}}),
+    async getSpecialistSchedule(id){return read().specialistSchedules.find(row=>row.specialistId===id)||null},
+    setSpecialistSchedule:(id,data)=>change(db=>{const row=db.specialistSchedules.find(item=>item.specialistId===id);check(row,'График специалиста не найден.','NOT_FOUND');if(data.expectedRevision!==undefined)check(data.expectedRevision===db.revision,'Данные изменились, обновите карточку.','STALE_REVISION');row.week=data.week;row.overrides=data.overrides||row.overrides;row.revision++;return {specialistId:id,revision:row.revision,warnings:[]}}),
+    async getRoomsAndServicesForSpecialist(id){const db=read();return db.specialistServices.filter(row=>row.specialistId===id).map(row=>db.services.find(service=>service.id===row.serviceId)).filter(Boolean)},
     async getBookings(){return read().bookings},
     async getAvailableSlots(date,id){return available(read(),date,id)},
     createBooking:data=>change(db=>{
