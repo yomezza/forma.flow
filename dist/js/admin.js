@@ -438,6 +438,10 @@
           if(booking.status==='completed')row.append(button('Отменить отметку',async()=>{try{await SiteAPI.undoMyCompletion(booking.id);await refresh()}catch(error){message(error.message)}},'admin-action'));
           page.append(row);
         }
+        page.append(element('h3','История моих переназначений'));
+        const events=await SiteAPI.getMyReassignmentEvents();
+        if(!events.length)page.append(element('p','Переназначений пока нет.'));
+        for(const event of events)page.append(card(event.serviceName||'Запись',`${event.date||''} ${event.time||''} · ${event.assigned?'Назначена вам':'Снята с вас'} · ${stamp(event.at)}`));
         page.append(element('h3','Мой график'));
         const schedule=await SiteAPI.getMySchedule();
         page.append(element('p',`Рабочих дней в неделе: ${Object.values(schedule.week).filter(intervals=>intervals.length).length}. Утверждённых периодов отсутствия: ${schedule.approvedAbsences.length}.`));
