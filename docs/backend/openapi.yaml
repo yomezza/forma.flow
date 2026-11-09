@@ -7498,8 +7498,8 @@
           "const": true
         "temporaryPassword":
           "type": "string"
-          "writeOnly": true
-          "description": "Shown once on the protected 201 response only; never persisted in logs, audit or database in plaintext."
+          "format": "password"
+          "description": "Sensitive ONE-TIME RESPONSE ONLY: show once over HTTPS with no-store; never persisted in logs, audit or database in plaintext."
       "required":
         - "accountId"
         - "email"
