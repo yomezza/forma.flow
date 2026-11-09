@@ -60,6 +60,46 @@
         const db=fixture({rooms:['R1','R2'],specialists:['S1','S2'],skills:[['S1',['A','B']],['S2',['A']]],bookings:[{id:'A1',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'pending_confirmation'}]});
         const result=FormaAssignmentEngine.solveAssignments(db,{date:'2026-11-09',candidate:{id:'B1',serviceId:'B',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'pending_confirmation'}});
         if(result.status!=='SAT'||result.allocations.B1.specialistId!=='S1'||result.allocations.A1.specialistId!=='S2')throw Error(JSON.stringify(result));
+      }],
+      ['touching sessions are allowed without a break',()=>{
+        const db=fixture({skills:[['S1',['A']]],bookings:[{id:'J1',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'pending_confirmation'}]});
+        const result=FormaAssignmentEngine.solveAssignments(db,{date:'2026-11-09',candidate:{id:'J2',serviceId:'A',date:'2026-11-09',time:'11:00',durationMinutes:60,status:'pending_confirmation'}});
+        if(result.status!=='SAT')throw Error(JSON.stringify(result));
+      }],
+      ['break buffer rejects early starts and allows exact boundary',()=>{
+        const db=fixture({skills:[['S1',['A']]],bookings:[{id:'J1',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'pending_confirmation'}]});
+        db.settings.breakMinutes=15;db.settings.step=5;
+        const make=time=>({id:'J2',serviceId:'A',date:'2026-11-09',time,durationMinutes:60,status:'pending_confirmation'});
+        for(const time of ['11:00','11:10'])if(FormaAssignmentEngine.solveAssignments(db,{date:'2026-11-09',candidate:make(time)}).status!=='UNSAT')throw Error('accepted '+time);
+        if(FormaAssignmentEngine.solveAssignments(db,{date:'2026-11-09',candidate:make('11:15')}).status!=='SAT')throw Error('rejected exact break boundary');
+      }],
+      ['connected component follows an overlap chain',()=>{
+        const db=fixture({rooms:['R1'],specialists:['S1'],skills:[['S1',['A']]],bookings:[
+          {id:'J1',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'pending_confirmation'},
+          {id:'J2',serviceId:'A',date:'2026-11-09',time:'10:45',durationMinutes:60,status:'pending_confirmation'}
+        ]});
+        const result=FormaAssignmentEngine.solveAssignments(db,{date:'2026-11-09',candidate:{id:'J3',serviceId:'A',date:'2026-11-09',time:'11:30',durationMinutes:60,status:'pending_confirmation'}});
+        if(result.status!=='UNSAT'||!result.affectedBookingIds.includes('J1')||!result.affectedBookingIds.includes('J2'))throw Error(JSON.stringify(result));
+      }],
+      ['fixed assignments stay in place when another pair is free',()=>{
+        const db=fixture({rooms:['R1','R2'],specialists:['S1','S2'],skills:[['S1',['A']],['S2',['A']]],bookings:[{id:'J1',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'confirmed',specialistId:'S1',roomId:'R1'}]});
+        const result=FormaAssignmentEngine.solveAssignments(db,{date:'2026-11-09',candidate:{id:'J2',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'pending_confirmation'}});
+        if(result.status!=='SAT'||result.allocations.J1.specialistId!=='S1'||result.allocations.J1.roomId!=='R1'||result.allocations.J2.specialistId!=='S2')throw Error(JSON.stringify(result));
+      }],
+      ['two fixed bookings cannot double-book one specialist',()=>{
+        const db=fixture({rooms:['R1','R2'],specialists:['S1','S2'],skills:[['S1',['A']],['S2',['A']]],bookings:[
+          {id:'J1',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'confirmed',specialistId:'S1',roomId:'R1'},
+          {id:'J2',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'confirmed',specialistId:'S1',roomId:'R2'}
+        ]});
+        if(FormaAssignmentEngine.solveAssignments(db,{date:'2026-11-09'}).status!=='UNSAT')throw Error('accepted double booking');
+      }],
+      ['result is deterministic when input arrays are reordered',()=>{
+        const db=fixture({rooms:['R2','R1'],specialists:['S2','S1'],skills:[['S1',['A','B']],['S2',['A']]],bookings:[{id:'J1',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'pending_confirmation'}]});
+        const candidate={id:'J2',serviceId:'B',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'pending_confirmation'};
+        const first=FormaAssignmentEngine.solveAssignments(db,{date:'2026-11-09',candidate});
+        db.rooms.reverse();db.specialists.reverse();db.bookings.reverse();
+        const second=FormaAssignmentEngine.solveAssignments(db,{date:'2026-11-09',candidate});
+        if(JSON.stringify(first)!==JSON.stringify(second))throw Error(JSON.stringify({first,second}));
       }]
     ];
     let passed=0;
