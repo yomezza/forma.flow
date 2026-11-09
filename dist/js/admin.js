@@ -385,6 +385,47 @@
     for(const profile of profiles){
       const qualifications=await SiteAPI.getRoomsAndServicesForSpecialist(profile.id);
       const row=card(profile.fullName,`${profile.state==='active'?'Активен':'В архиве'} · ${qualifications.map(item=>item.name).join(', ')||'Услуги не назначены'}`);
+      const schedule=await SiteAPI.getSpecialistSchedule(profile.id);
+      const editSchedule=element('details');
+      editSchedule.append(element('summary','Личный недельный график'));
+      const scheduleForm=element('form',undefined,'edit-form');
+      const dayNames=['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+      const dayRows=[];
+      for(let day=0;day<7;day++){
+        const dayBlock=element('fieldset',undefined,'specialist-day');
+        dayBlock.append(element('legend',dayNames[day]));
+        const intervals=(schedule?.week?.[day]||[]).map(interval=>({...interval}));
+        const list=element('div',undefined,'specialist-intervals');
+        const sync=()=>{dayRows[day]=[...list.querySelectorAll('.specialist-interval')].map(item=>({start:item.querySelector('[data-time="start"]').value,end:item.querySelector('[data-time="end"]').value}))};
+        const addInterval=(interval={start:'09:00',end:'19:00'})=>{
+          const item=element('div',undefined,'specialist-interval');item.classList.add('specialist-interval');
+          const start=element('input');start.type='time';start.value=interval.start||'09:00';start.setAttribute('data-time','start');start.setAttribute('aria-label',dayNames[day]+' начало интервала');
+          const end=element('input');end.type='time';end.value=interval.end||'19:00';end.setAttribute('data-time','end');end.setAttribute('aria-label',dayNames[day]+' конец интервала');
+          const remove=button('Убрать интервал',()=>{item.remove();sync()},'admin-action');
+          item.append(start,end,remove);list.append(item);sync();
+        };
+        for(const interval of intervals)addInterval(interval);
+        const add=button('Добавить интервал',()=>addInterval(),'admin-action');
+        list.addEventListener('input',sync);dayBlock.append(list,add);scheduleForm.append(dayBlock);
+      }
+      const saveSchedule=element('button','Сохранить график','btn');saveSchedule.type='submit';scheduleForm.append(saveSchedule);
+      scheduleForm.onsubmit=async event=>{
+        event.preventDefault();
+        try{
+          const week={};
+          for(let day=0;day<7;day++){
+            const intervals=[...scheduleForm.querySelectorAll('fieldset')][day].querySelectorAll('.specialist-interval');
+            const values=[...intervals].map(item=>({start:item.querySelector('[data-time="start"]').value,end:item.querySelector('[data-time="end"]').value}));
+            if(values.some(item=>!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(item.start)||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(item.end)||item.start>=item.end))throw new Error('Проверьте интервалы: конец должен быть позже начала.');
+            values.sort((a,b)=>a.start.localeCompare(b.start));
+            if(values.some((item,index)=>index>0&&values[index-1].end>item.start))throw new Error('Интервалы одного дня не должны пересекаться.');
+            week[day]=values;
+          }
+          await SiteAPI.setSpecialistSchedule(profile.id,{week,overrides:schedule?.overrides||{},expectedRevision:schedule?.dataRevision});
+          await show(current);message('Личный график сохранён.');
+        }catch(error){message(error.message)}
+      };
+      editSchedule.append(scheduleForm);row.append(editSchedule);
       if(profile.state==='active'){
         row.append(button('Создать демо-доступ',async()=>{
           const login=prompt('Учебный логин для специалиста:');if(!login)return;
@@ -460,9 +501,14 @@
         inputField(form,'Дата начала','startDate','date','',{required:true});
         inputField(form,'Дата окончания','endDate','date','',{required:true});
         inputField(form,'Тип','kind','select','vacation',{choices:[['vacation','Отпуск'],['day_off','Выходной']]});
+        const scope=inputField(form,'Период','scope','select','full_days',{choices:[['full_days','Целые дни'],['partial_day','Часть одного дня']]});
+        const startTime=inputField(form,'Время начала','startTime','time','14:00',{required:false});
+        const endTime=inputField(form,'Время окончания','endTime','time','17:00',{required:false});
+        const toggleTimes=()=>{const partial=scope.value==='partial_day';startTime.disabled=endTime.disabled=!partial;startTime.required=endTime.required=partial;if(partial)form.elements.endDate.value=form.elements.startDate.value};
+        scope.addEventListener('change',toggleTimes);form.elements.startDate.addEventListener('change',()=>{if(scope.value==='partial_day')form.elements.endDate.value=form.elements.startDate.value});toggleTimes();
         inputField(form,'Причина','reason','text','',{required:false,maxLength:500});
         const submit=element('button','Отправить заявку','btn');submit.type='submit';form.append(submit);
-        form.onsubmit=async event=>{event.preventDefault();try{await SiteAPI.submitMyAbsence({kind:form.elements.kind.value,scope:'full_days',startDate:form.elements.startDate.value,endDate:form.elements.endDate.value,reason:form.elements.reason.value});await refresh()}catch(error){message(error.message)}};
+        form.onsubmit=async event=>{event.preventDefault();try{const partial=form.elements.scope.value==='partial_day';await SiteAPI.submitMyAbsence({kind:form.elements.kind.value,scope:form.elements.scope.value,startDate:form.elements.startDate.value,endDate:form.elements.endDate.value,startTime:partial?form.elements.startTime.value:null,endTime:partial?form.elements.endTime.value:null,reason:form.elements.reason.value});await refresh()}catch(error){message(error.message)}};
         page.append(form);
         page.append(element('h3','Мои заявки'));
         for(const request of await SiteAPI.getMyAbsenceRequests()){
