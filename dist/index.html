@@ -49,6 +49,13 @@
           <a href="#services">Услуги</a>
           <a href="#about">О кабинете</a>
         </nav>
+        <details class="workspace-picker public-picker" id="publicWorkspacePicker">
+          <summary aria-label="Выбрать рабочее пространство">Сайт <span aria-hidden="true">⌄</span></summary>
+          <div class="workspace-menu" aria-label="Демо-режимы">
+            <button type="button" data-workspace-entry="admin" id="publicAdminEntry">Администратор</button>
+            <button type="button" data-workspace-entry="specialist" id="publicSpecialistEntry">Специалист</button>
+          </div>
+        </details>
         <a class="navcta" href="#booking">
           Записаться <span>↗</span>
         </a>
@@ -179,7 +186,11 @@
             <span>Управление кабинетом</span>
           </div>
           <span class="demo-label">Демо</span>
-          <button type="button" id="adminRoleSwitch" class="admin-action" hidden></button>
+          <nav class="workspace-switcher" id="adminWorkspaceSwitch" aria-label="Рабочее пространство">
+            <button type="button" data-workspace-target="site">Сайт</button>
+            <button type="button" data-workspace-target="admin">Администратор</button>
+            <button type="button" data-workspace-target="specialist">Специалист</button>
+          </nav>
         </header>
 
         <div class="admin-layout">
@@ -193,7 +204,7 @@
         <div class="admin-foot">
           <strong role="status" id="adminMsg"></strong>
           <button type="button" id="adminClose" class="admin-action">
-            Пользовательский интерфейс
+            Вернуться на сайт
           </button>
         </div>
       </div>
