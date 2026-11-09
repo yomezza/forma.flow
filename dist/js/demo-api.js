@@ -430,14 +430,15 @@ const DemoAPI = (() => {
     async getMyBookings(){const db=read(),account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId);check(db.demoSession.activeRole==='specialist'&&account?.specialistId,'Требуется роль специалиста.','ROLE_FORBIDDEN');return db.bookings.filter(b=>b.specialistId===account.specialistId&&['pending_confirmation','confirmed','completed'].includes(b.status)).map(b=>specialistBookingDTO(db,b))},
     async markMyBookingCompleted(id){return change(db=>{const account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId),booking=find(db.bookings,id);check(db.demoSession.activeRole==='specialist'&&account?.specialistId===booking.specialistId,'Доступ запрещён.','ROLE_FORBIDDEN');check(booking.status==='confirmed','Запись нельзя завершить.','INVALID_STATUS_TRANSITION');const end=new Date(booking.date+'T'+booking.time);end.setMinutes(end.getMinutes()+booking.durationMinutes);check(Date.now()>=end.getTime(),'Сеанс ещё не завершён.','NOT_ENDED_YET');booking.status='completed';booking.completion={bySpecialistId:account.specialistId,at:new Date().toISOString()};db.auditEvents.push({id:uid(),action:'BOOKING_COMPLETED',bookingId:id,at:booking.completion.at});return specialistBookingDTO(db,booking)})},
     async getAssignmentCandidates(id){
-      const db=read();requireAdmin(db);const booking=find(db.bookings,id),candidates=[];
+      const db=read();requireAdmin(db);const booking=find(db.bookings,id),candidates=[],reasons=new Set();
       for(const specialist of db.specialists.filter(row=>row.state==='active'&&db.specialistServices.some(link=>link.specialistId===row.id&&link.serviceId===booking.serviceId))){
-        for(const room of db.rooms.filter(row=>row.isActive)){
-          const preview=planAssignment(db,id,specialist.id,room.id);
-          if(preview.allowed)candidates.push({specialistId:specialist.id,roomId:room.id,requiresConfirmation:preview.requiresConfirmation,affectedBookingIds:preview.affectedBookingIds});
-        }
+        const plans=db.rooms.filter(row=>row.isActive).map(room=>planAssignment(db,id,specialist.id,room.id));
+        const allowed=plans.filter(plan=>plan.allowed);
+        if(allowed.length)candidates.push({specialistId:specialist.id,roomIds:allowed.map(plan=>plan.roomId),requiresConfirmation:allowed.some(plan=>plan.requiresConfirmation),affectedBookingIds:[...new Set(allowed.flatMap(plan=>plan.affectedBookingIds))].sort()});
+        for(const plan of plans)if(!plan.allowed&&plan.reason)reasons.add(plan.reason);
       }
-      return {revision:db.revision,candidates};
+      if(!candidates.length&&db.specialists.every(row=>row.state!=='active'))reasons.add('NO_ACTIVE_SPECIALISTS');
+      return {revision:db.revision,candidates,reasons:[...reasons].sort()};
     },
     async previewBookingAssignment(id,{specialistId,roomId=null}={}){
       const db=read();requireAdmin(db);return planAssignment(db,id,specialistId,roomId);
