@@ -28,6 +28,23 @@
         db.schedule.published={'2026-11-09':{kind:'working',intervals:[{start:'09:00',end:'18:00'}]}};
         if(FormaAssignmentEngine.solveAssignments(db,{date:candidate.date,candidate}).status!=='SAT')throw Error('published working day rejected');
       }],
+      ['blocked simple date rejects candidate',()=>{
+        const db=fixture({rooms:['R1'],specialists:['S1'],skills:[['S1',['A']]]});
+        db.settings.blockedDates=['2026-11-09'];
+        const candidate={id:'B1',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'pending_confirmation'};
+        if(FormaAssignmentEngine.solveAssignments(db,{date:candidate.date,candidate}).status!=='UNSAT')throw Error('blocked date remained available');
+      }],
+      ['personal schedule boundary rejects too-long session',()=>{
+        const db=fixture({rooms:['R1'],specialists:['S1'],skills:[['S1',['A']]]});
+        db.specialistSchedules[0].week[1]=[{start:'09:00',end:'11:00'}];
+        const candidate={id:'B1',serviceId:'A',date:'2026-11-09',time:'10:30',durationMinutes:60,status:'pending_confirmation'};
+        if(FormaAssignmentEngine.solveAssignments(db,{date:candidate.date,candidate}).status!=='UNSAT')throw Error('session exceeded personal shift');
+      }],
+      ['search limit returns UNKNOWN',()=>{
+        const db=fixture({rooms:['R1'],specialists:['S1'],skills:[['S1',['A']]]});
+        const candidate={id:'B1',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'pending_confirmation'};
+        if(FormaAssignmentEngine.solveAssignments(db,{date:candidate.date,candidate,nodeLimit:0}).status!=='UNKNOWN')throw Error('limit was not represented as UNKNOWN');
+      }],
       ['one room rejects overlap',()=>{
         const db=fixture({bookings:[{id:'B1',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'pending_confirmation'}]});
         const result=FormaAssignmentEngine.solveAssignments(db,{date:'2026-11-09',candidate:{id:'B2',serviceId:'A',date:'2026-11-09',time:'10:30',durationMinutes:60,status:'pending_confirmation'}});
