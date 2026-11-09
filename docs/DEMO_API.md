@@ -136,6 +136,8 @@ Simple использует workDays, start, end, step, breakMinutes, blockedDat
 
 `previewBookingAssignment` сначала проверяет прямую допустимость назначения и совместное размещение связанного компонента. Если назначение допустимо само по себе, но вытесняет одну или несколько неназначенных заявок, результат содержит `requiresConfirmation: true` и точные `affectedBookingIds`. `assignBooking` требует `expectedRevision` и точного списка `acknowledgedBookingIds`. Без полного совпадения возвращается `CONFLICT_ACK_REQUIRED`; прямой конфликт с уже закреплённой записью не подтверждается.
 
+Отказ предпросмотра возвращает причину: `SPECIALIST_INELIGIBLE` (профиль неактивен или не имеет квалификации), `SPECIALIST_OFF` (вне рабочего интервала или утверждённое отсутствие), `SPECIALIST_BUSY` (пересечение с закреплённой записью), `ROOM_UNAVAILABLE` (кабинет неактивен или занят), `DIRECT_RESOURCE_CONFLICT` (другое прямое ограничение ресурсов), `CAPACITY_CHECK_LIMIT` (matcher достиг предела поиска) либо `UNRESOLVED_CAPACITY_CONFLICT` (уже существует открытое исключение ёмкости).
+
 После явно подтверждённого назначения создаётся `capacityException`:
 
 ```js
