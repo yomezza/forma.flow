@@ -268,7 +268,8 @@ const DemoAPI = (() => {
     return slots;
   }
   function planAssignment(db,bookingId,specialistId,roomId){
-    const booking=find(db.bookings,bookingId),options={date:booking.date,anchorBookingId:bookingId,ignoreCapacityExceptions:true,fixedOverrides:{[bookingId]:{specialistId,roomId}}};
+    const booking=find(db.bookings,bookingId);check(['pending_confirmation','confirmed'].includes(booking.status),'Отменённую или завершённую запись нельзя переназначить.','INVALID_STATUS_TRANSITION');
+    const options={date:booking.date,anchorBookingId:bookingId,ignoreCapacityExceptions:true,fixedOverrides:{[bookingId]:{specialistId,roomId}}};
     const direct=globalThis.FormaAssignmentEngine.solveAssignments(db,options);
     if(direct.feasible)return {allowed:true,requiresConfirmation:false,revision:db.revision,bookingId,specialistId,roomId:roomId||direct.allocations[bookingId]?.roomId||null,affectedBookingIds:[],reason:null};
     if(direct.reason==='UNRESOLVED_CAPACITY_CONFLICT')return {allowed:false,requiresConfirmation:false,revision:db.revision,bookingId,specialistId,roomId,affectedBookingIds:direct.affectedBookingIds,reason:direct.reason};
@@ -374,15 +375,15 @@ const DemoAPI = (() => {
     async getAbsenceRequests({status=null}={}){const db=read();check(db.demoSession.activeRole==='admin','Доступ запрещён.','ROLE_FORBIDDEN');return db.absenceRequests.filter(row=>!status||row.status===status).sort((a,b)=>(a.status==='pending'?-1:1)-(b.status==='pending'?-1:1)||a.requestedAt.localeCompare(b.requestedAt))},
     async previewAbsenceApproval(id){const db=read(),request=find(db.absenceRequests,id);check(db.demoSession.activeRole==='admin','Доступ запрещён.','ROLE_FORBIDDEN');const conflicts=db.bookings.filter(booking=>booking.specialistId===request.specialistId&&['pending_confirmation','confirmed'].includes(booking.status)&&booking.date>=request.startDate&&booking.date<=request.endDate&& (request.scope!=='partial_day'||(minutes(booking.time)<minutes(request.endTime)&&minutes(request.startTime)<minutes(booking.time)+booking.durationMinutes)));return {revision:db.revision,requestId:id,conflicts:conflicts.map(booking=>({bookingId:booking.id,date:booking.date,time:booking.time})),requiresConfirmation:conflicts.length>0}},
     approveAbsence:(id,{expectedRevision,acknowledgedBookingIds=[]}={})=>change(db=>{
-      check(db.demoSession.activeRole==='admin','Доступ запрещён.','ROLE_FORBIDDEN');if(expectedRevision!==undefined)check(expectedRevision===db.revision,'Данные изменились. Повторите проверку.','STALE_REVISION');
+      check(db.demoSession.activeRole==='admin','Доступ запрещён.','ROLE_FORBIDDEN');check(expectedRevision===db.revision,'Данные изменились. Повторите проверку.','STALE_REVISION');
       const request=find(db.absenceRequests,id);check(request.status==='pending','Заявка уже обработана.','INVALID_STATUS_TRANSITION');
       const conflicts=db.bookings.filter(booking=>booking.specialistId===request.specialistId&&['pending_confirmation','confirmed'].includes(booking.status)&&booking.date>=request.startDate&&booking.date<=request.endDate&&(request.scope!=='partial_day'||(minutes(booking.time)<minutes(request.endTime)&&minutes(request.startTime)<minutes(booking.time)+booking.durationMinutes)));
-      check(!conflicts.length||conflicts.every(booking=>acknowledgedBookingIds.includes(booking.id)),'Подтвердите конфликты с существующими записями.','ABSENCE_CONFLICT');
+      const expected=[...conflicts.map(booking=>booking.id)].sort(),actual=[...acknowledgedBookingIds].sort();check(JSON.stringify(expected)===JSON.stringify(actual),'Подтвердите точный список конфликтующих записей.','ABSENCE_CONFLICT');
       request.status='approved';request.updatedAt=new Date().toISOString();for(const booking of conflicts)booking.requiresReassignment=true;
       db.auditEvents.push({id:uid(),action:'ABSENCE_APPROVED',absenceRequestId:id,at:request.updatedAt});return request;
     }),
     rejectAbsence:(id,{reason='',expectedRevision}={})=>change(db=>{
-      check(db.demoSession.activeRole==='admin','Доступ запрещён.','ROLE_FORBIDDEN');if(expectedRevision!==undefined)check(expectedRevision===db.revision,'Данные изменились.','STALE_REVISION');
+      check(db.demoSession.activeRole==='admin','Доступ запрещён.','ROLE_FORBIDDEN');check(expectedRevision===db.revision,'Данные изменились.','STALE_REVISION');
       const request=find(db.absenceRequests,id);check(request.status==='pending','Заявка уже обработана.','INVALID_STATUS_TRANSITION');check(str(String(reason).trim(),500),'Укажите причину отказа.');
       request.status='rejected';request.decisionReason=String(reason).trim();request.updatedAt=new Date().toISOString();db.auditEvents.push({id:uid(),action:'ABSENCE_REJECTED',absenceRequestId:id,at:request.updatedAt});return request;
     }),
@@ -403,7 +404,7 @@ const DemoAPI = (() => {
     updateRoom:(id,data)=>change(db=>{requireAdmin(db);const room=find(db.rooms,id);if(data.name!==undefined){check(str(String(data.name).trim(),80));room.name=String(data.name).trim()}if(typeof data.isActive==='boolean')room.isActive=data.isActive;if(data.sortOrder!==undefined)room.sortOrder=data.sortOrder;return room}),
     setSpecialistServices:(id,serviceIds)=>change(db=>{requireAdmin(db);find(db.specialists,id);check(Array.isArray(serviceIds));for(const serviceId of serviceIds)find(db.services,serviceId);db.specialistServices=db.specialistServices.filter(row=>row.specialistId!==id);for(const serviceId of [...new Set(serviceIds)])db.specialistServices.push({specialistId:id,serviceId});return {specialistId:id,serviceIds:[...new Set(serviceIds)],revision:db.revision+1}}),
     async getSpecialistSchedule(id){const db=read();requireAdmin(db);const schedule=db.specialistSchedules.find(row=>row.specialistId===id);return schedule?{...schedule,dataRevision:db.revision}:null},
-    setSpecialistSchedule:(id,data)=>change(db=>{requireAdmin(db);const row=db.specialistSchedules.find(item=>item.specialistId===id);check(row,'График специалиста не найден.','NOT_FOUND');if(data.expectedRevision!==undefined)check(data.expectedRevision===db.revision,'Данные изменились, обновите карточку.','STALE_REVISION');specialistScheduleOK({specialistId:id,revision:row.revision,week:data.week,overrides:data.overrides??row.overrides});row.week=data.week;row.overrides=data.overrides??row.overrides;row.revision++;const warnings=db.bookings.filter(booking=>booking.specialistId===id&&activeRequest(booking)&&!FormaAssignmentEngine.solveAssignments(db,{date:booking.date,anchorBookingId:booking.id,ignoreCapacityExceptions:true}).feasible).map(booking=>({bookingId:booking.id,code:'REQUIRES_REASSIGNMENT'}));for(const warning of warnings){const booking=db.bookings.find(item=>item.id===warning.bookingId);booking.requiresReassignment=true}return {specialistId:id,revision:row.revision,warnings}}),
+    setSpecialistSchedule:(id,data)=>change(db=>{requireAdmin(db);const row=db.specialistSchedules.find(item=>item.specialistId===id);check(row,'График специалиста не найден.','NOT_FOUND');check(data.expectedRevision===db.revision,'Данные изменились, обновите карточку.','STALE_REVISION');specialistScheduleOK({specialistId:id,revision:row.revision,week:data.week,overrides:data.overrides??row.overrides});row.week=data.week;row.overrides=data.overrides??row.overrides;row.revision++;const warnings=db.bookings.filter(booking=>booking.specialistId===id&&activeRequest(booking)&&!FormaAssignmentEngine.solveAssignments(db,{date:booking.date,anchorBookingId:booking.id,ignoreCapacityExceptions:true}).feasible).map(booking=>({bookingId:booking.id,code:'REQUIRES_REASSIGNMENT'}));for(const warning of warnings){const booking=db.bookings.find(item=>item.id===warning.bookingId);booking.requiresReassignment=true}return {specialistId:id,revision:row.revision,warnings}}),
     async getRoomsAndServicesForSpecialist(id){const db=read();requireAdmin(db);return db.specialistServices.filter(row=>row.specialistId===id).map(row=>db.services.find(service=>service.id===row.serviceId)).filter(Boolean)},
     async getDemoAccounts(){const db=read();requireAdmin(db);return db.accounts.map(({id,login,displayName,roles,state,mustCompleteFirstDemoLogin})=>({id,login,displayName,roles,state,mustCompleteFirstDemoLogin}))},
     inviteDemoAccount:({displayName,login,roles=['specialist'],specialistId}={})=>change(db=>{
@@ -442,7 +443,7 @@ const DemoAPI = (() => {
       const db=read();requireAdmin(db);return planAssignment(db,id,specialistId,roomId);
     },
     assignBooking:(id,{specialistId,roomId=null,expectedRevision,acknowledgedBookingIds=[]}={})=>change(db=>{
-      requireAdmin(db);if(expectedRevision!==undefined)check(expectedRevision===db.revision,'Данные изменились. Повторите предпросмотр.','STALE_REVISION');
+      requireAdmin(db);check(expectedRevision===db.revision,'Данные изменились. Повторите предпросмотр.','STALE_REVISION');
       const booking=find(db.bookings,id),before={specialistId:booking.specialistId,roomId:booking.roomId};
       const plan=planAssignment(db,id,specialistId,roomId);
       check(plan.allowed,plan.reason==='UNRESOLVED_CAPACITY_CONFLICT'?'В компоненте остался нерешённый конфликт ёмкости.':'Назначение конфликтует с закреплённой записью или ресурсом.',plan.reason||'DIRECT_RESOURCE_CONFLICT');
