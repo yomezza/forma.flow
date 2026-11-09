@@ -232,6 +232,7 @@ const DemoAPI = (() => {
       write(memory);
     }
   } catch {storageFailed()}
+  function requireAdmin(db){check(db.demoSession?.activeRole==='admin','Доступно только администратору.','ROLE_FORBIDDEN')}
   function find(rows,id) {
     const row=rows.find(r=>r.id===id);
     check(row,'Объект не найден.','NOT_FOUND');return row;
@@ -275,6 +276,16 @@ const DemoAPI = (() => {
     async getDraftSchedule(a,b){return subset(read().schedule.drafts,a,b)},
     async getDateSchedule(d){const db=read();return {active:effective(db,d),draft:db.schedule.drafts[d]||null,published:db.schedule.published[d]||null}},
     async getBookingWarnings(){const db=read();return db.bookings.filter(b=>activeRequest(b)&&!fits(db,b,effective(db,b.date))).map(b=>b.id)},
+    async getAttentionItems(){
+      const db=read();requireAdmin(db);const items=[];
+      for(const booking of db.bookings.filter(row=>['pending_confirmation','confirmed'].includes(row.status))){
+        if(!booking.specialistId)items.push({code:'UNASSIGNED_SPECIALIST',bookingId:booking.id,message:'Не назначен специалист'});
+        if(booking.requiresReassignment)items.push({code:'REQUIRES_REASSIGNMENT',bookingId:booking.id,message:'Требуется переназначение'});
+        if(!fits(db,booking,effective(db,booking.date)))items.push({code:'OUTSIDE_STUDIO_SCHEDULE',bookingId:booking.id,message:'Запись вне опубликованного расписания'});
+      }
+      for(const request of db.absenceRequests.filter(row=>row.status==='pending'))items.push({code:'ABSENCE_REVIEW_PENDING',absenceRequestId:request.id,message:'Заявка на отсутствие ожидает решения'});
+      return {revision:db.revision,items,counts:{total:items.length}};
+    },
     async getBookingsForDate(d){return read().bookings.filter(b=>b.date===d)},
     async previewScheduleModeChange(mode,a,b){
       const db=read(),list=dates(a,b),live=db.services.filter(s=>s.isActive);
@@ -340,9 +351,9 @@ const DemoAPI = (() => {
       const request=find(db.absenceRequests,id);check(request.status==='pending','Заявка уже обработана.','INVALID_STATUS_TRANSITION');check(str(String(reason).trim(),500),'Укажите причину отказа.');
       request.status='rejected';request.decisionReason=String(reason).trim();request.updatedAt=new Date().toISOString();db.auditEvents.push({id:uid(),action:'ABSENCE_REJECTED',absenceRequestId:id,at:request.updatedAt});return request;
     }),
-    async getSpecialists({includeArchived=true}={}){return read().specialists.filter(row=>includeArchived||row.state==='active')},
+    async getSpecialists({includeArchived=true}={}){const db=read();requireAdmin(db);return db.specialists.filter(row=>includeArchived||row.state==='active')},
     createSpecialist:data=>change(db=>{
-      const fullName=String(data.fullName||'').trim();check(str(fullName,120),'Укажите имя специалиста.');
+      requireAdmin(db);const fullName=String(data.fullName||'').trim();check(str(fullName,120),'Укажите имя специалиста.');
       const id=uid(),now=new Date().toISOString();
       const row={id,fullName,state:'active',accountId:null,createdAt:now,archivedAt:null};
       db.specialists.push(row);
@@ -350,14 +361,14 @@ const DemoAPI = (() => {
       for(const serviceId of [...new Set(data.serviceIds||[])]){find(db.services,serviceId);db.specialistServices.push({specialistId:id,serviceId})}
       return row;
     }),
-    updateSpecialist:(id,data)=>change(db=>{const row=find(db.specialists,id);const fullName=String(data.fullName??row.fullName).trim();check(str(fullName,120));row.fullName=fullName;return row}),
-    archiveSpecialist:id=>change(db=>{const row=find(db.specialists,id);row.state='archived';row.archivedAt=new Date().toISOString();return row}),
-    async getRooms({includeInactive=false}={}){return read().rooms.filter(room=>includeInactive||room.isActive)},
-    createRoom:data=>change(db=>{const name=String(data.name||'').trim();check(str(name,80));const room={id:uid(),name,isActive:true,sortOrder:num(data.sortOrder??0,0,9999)?(data.sortOrder??0):0};db.rooms.push(room);return room}),
-    updateRoom:(id,data)=>change(db=>{const room=find(db.rooms,id);if(data.name!==undefined){check(str(String(data.name).trim(),80));room.name=String(data.name).trim()}if(typeof data.isActive==='boolean')room.isActive=data.isActive;if(data.sortOrder!==undefined)room.sortOrder=data.sortOrder;return room}),
-    setSpecialistServices:(id,serviceIds)=>change(db=>{find(db.specialists,id);check(Array.isArray(serviceIds));for(const serviceId of serviceIds)find(db.services,serviceId);db.specialistServices=db.specialistServices.filter(row=>row.specialistId!==id);for(const serviceId of [...new Set(serviceIds)])db.specialistServices.push({specialistId:id,serviceId});return {specialistId:id,serviceIds:[...new Set(serviceIds)],revision:db.revision+1}}),
+    updateSpecialist:(id,data)=>change(db=>{requireAdmin(db);const row=find(db.specialists,id);const fullName=String(data.fullName??row.fullName).trim();check(str(fullName,120));row.fullName=fullName;return row}),
+    archiveSpecialist:id=>change(db=>{requireAdmin(db);const row=find(db.specialists,id);row.state='archived';row.archivedAt=new Date().toISOString();return row}),
+    async getRooms({includeInactive=false}={}){const db=read();requireAdmin(db);return db.rooms.filter(room=>includeInactive||room.isActive)},
+    createRoom:data=>change(db=>{requireAdmin(db);const name=String(data.name||'').trim();check(str(name,80));const room={id:uid(),name,isActive:true,sortOrder:num(data.sortOrder??0,0,9999)?(data.sortOrder??0):0};db.rooms.push(room);return room}),
+    updateRoom:(id,data)=>change(db=>{requireAdmin(db);const room=find(db.rooms,id);if(data.name!==undefined){check(str(String(data.name).trim(),80));room.name=String(data.name).trim()}if(typeof data.isActive==='boolean')room.isActive=data.isActive;if(data.sortOrder!==undefined)room.sortOrder=data.sortOrder;return room}),
+    setSpecialistServices:(id,serviceIds)=>change(db=>{requireAdmin(db);find(db.specialists,id);check(Array.isArray(serviceIds));for(const serviceId of serviceIds)find(db.services,serviceId);db.specialistServices=db.specialistServices.filter(row=>row.specialistId!==id);for(const serviceId of [...new Set(serviceIds)])db.specialistServices.push({specialistId:id,serviceId});return {specialistId:id,serviceIds:[...new Set(serviceIds)],revision:db.revision+1}}),
     async getSpecialistSchedule(id){return read().specialistSchedules.find(row=>row.specialistId===id)||null},
-    setSpecialistSchedule:(id,data)=>change(db=>{const row=db.specialistSchedules.find(item=>item.specialistId===id);check(row,'График специалиста не найден.','NOT_FOUND');if(data.expectedRevision!==undefined)check(data.expectedRevision===db.revision,'Данные изменились, обновите карточку.','STALE_REVISION');row.week=data.week;row.overrides=data.overrides||row.overrides;row.revision++;return {specialistId:id,revision:row.revision,warnings:[]}}),
+    setSpecialistSchedule:(id,data)=>change(db=>{requireAdmin(db);const row=db.specialistSchedules.find(item=>item.specialistId===id);check(row,'График специалиста не найден.','NOT_FOUND');if(data.expectedRevision!==undefined)check(data.expectedRevision===db.revision,'Данные изменились, обновите карточку.','STALE_REVISION');row.week=data.week;row.overrides=data.overrides||row.overrides;row.revision++;return {specialistId:id,revision:row.revision,warnings:[]}}),
     async getRoomsAndServicesForSpecialist(id){const db=read();return db.specialistServices.filter(row=>row.specialistId===id).map(row=>db.services.find(service=>service.id===row.serviceId)).filter(Boolean)},
     async getDemoAccounts(){return read().accounts.map(({id,login,displayName,roles,state,mustCompleteFirstDemoLogin})=>({id,login,displayName,roles,state,mustCompleteFirstDemoLogin}))},
     async switchDemoRole(role){return change(db=>{const account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId);check(account&&account.roles.includes(role),'Роль недоступна.','ROLE_FORBIDDEN');db.demoSession.activeRole=role;return {accountId:account.id,activeRole:role}})},
@@ -365,7 +376,7 @@ const DemoAPI = (() => {
     async getMyBookings(){const db=read(),account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId);check(db.demoSession.activeRole==='specialist'&&account?.specialistId,'Требуется роль специалиста.','ROLE_FORBIDDEN');return db.bookings.filter(b=>b.specialistId===account.specialistId&&['pending_confirmation','confirmed','completed'].includes(b.status)).map(({id,clientName,serviceId,name,date,time,durationMinutes,status,roomId})=>({id,clientName,serviceId,serviceName:name,date,time,durationMinutes,status,roomName:db.rooms.find(r=>r.id===roomId)?.name||null}))},
     async markMyBookingCompleted(id){return change(db=>{const account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId),booking=find(db.bookings,id);check(db.demoSession.activeRole==='specialist'&&account?.specialistId===booking.specialistId,'Доступ запрещён.','ROLE_FORBIDDEN');check(booking.status==='confirmed','Запись нельзя завершить.','INVALID_STATUS_TRANSITION');const end=new Date(booking.date+'T'+booking.time);end.setMinutes(end.getMinutes()+booking.durationMinutes);check(Date.now()>=end.getTime(),'Сеанс ещё не завершён.','NOT_ENDED_YET');booking.status='completed';booking.completion={bySpecialistId:account.specialistId,at:new Date().toISOString()};db.auditEvents.push({id:uid(),action:'BOOKING_COMPLETED',bookingId:id,at:booking.completion.at});return booking})},
     async getAssignmentCandidates(id){
-      const db=read(),booking=find(db.bookings,id),candidates=[];
+      const db=read();requireAdmin(db);const booking=find(db.bookings,id),candidates=[];
       for(const specialist of db.specialists.filter(row=>row.state==='active'&&db.specialistServices.some(link=>link.specialistId===row.id&&link.serviceId===booking.serviceId))){
         for(const room of db.rooms.filter(row=>row.isActive)){
           const outcome=FormaAssignmentEngine.solveAssignments(db,{date:booking.date,fixedOverrides:{[id]:{specialistId:specialist.id,roomId:room.id}}});
@@ -375,11 +386,11 @@ const DemoAPI = (() => {
       return {revision:db.revision,candidates};
     },
     async previewBookingAssignment(id,{specialistId,roomId=null}={}){
-      const db=read(),booking=find(db.bookings,id),outcome=FormaAssignmentEngine.solveAssignments(db,{date:booking.date,fixedOverrides:{[id]:{specialistId,roomId}}});
+      const db=read();requireAdmin(db);const booking=find(db.bookings,id),outcome=FormaAssignmentEngine.solveAssignments(db,{date:booking.date,fixedOverrides:{[id]:{specialistId,roomId}}});
       return {allowed:outcome.feasible,revision:db.revision,specialistId,roomId,reason:outcome.reason,affectedBookingIds:outcome.affectedBookingIds};
     },
     assignBooking:(id,{specialistId,roomId=null,expectedRevision,acknowledgedBookingIds=[]}={})=>change(db=>{
-      if(expectedRevision!==undefined)check(expectedRevision===db.revision,'Данные изменились. Повторите предпросмотр.','STALE_REVISION');
+      requireAdmin(db);if(expectedRevision!==undefined)check(expectedRevision===db.revision,'Данные изменились. Повторите предпросмотр.','STALE_REVISION');
       const booking=find(db.bookings,id),before={specialistId:booking.specialistId,roomId:booking.roomId};
       const outcome=FormaAssignmentEngine.solveAssignments(db,{date:booking.date,fixedOverrides:{[id]:{specialistId,roomId}}});
       check(outcome.feasible,'Назначение конфликтует с ресурсами или другими заявками.','DIRECT_RESOURCE_CONFLICT');
@@ -387,8 +398,8 @@ const DemoAPI = (() => {
       db.assignmentEvents.push({id:uid(),bookingId:id,at:booking.assignmentUpdatedAt,fromSpecialistId:before.specialistId,toSpecialistId:booking.specialistId,fromRoomId:before.roomId,toRoomId:booking.roomId});
       return booking;
     }),
-    async getBookingAssignmentEvents(id){return read().assignmentEvents.filter(event=>event.bookingId===id)},
-    async getBookings(){return read().bookings},
+    async getBookingAssignmentEvents(id){const db=read();requireAdmin(db);return db.assignmentEvents.filter(event=>event.bookingId===id)},
+    async getBookings(){const db=read();requireAdmin(db);return db.bookings},
     async getAvailableSlots(date,id){return available(read(),date,id)},
     createBooking:data=>change(db=>{
       check(available(db,data.date,data.serviceId).includes(data.time),'Это время уже недоступно. Выберите другое.','SLOT_UNAVAILABLE');
