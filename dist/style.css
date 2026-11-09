@@ -93,3 +93,5 @@ main>section.focus-muted{opacity:.3!important;animation:none!important}
 @media(max-width:820px){.plan-layout{grid-template-columns:1fr}.plan-editor{border:0;padding:0}}
 @media(max-width:700px){#admin,#admin[data-size]{width:100%;max-height:100dvh}.admin-shell{height:100%;max-height:100dvh}.admin-layout{display:flex;flex:1;flex-direction:column}#adminNav{flex:none;flex-wrap:nowrap;overflow:auto}#adminNav button{white-space:nowrap}.admin-body{flex:1}.admin-head{padding:10px 14px}.admin-head h2{font-size:22px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}main>section{transition:none}}
+
+#adminNav button[hidden]{display:none}
