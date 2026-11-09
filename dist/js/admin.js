@@ -25,7 +25,7 @@
   }
   if(roleSwitch)roleSwitch.onclick=async()=>{try{const account=await SiteAPI.getMyDemoAccount();if(!account.roles.includes('admin')||!account.roles.includes('specialist')||!account.specialistId)return;const next=account.activeRole==='admin'?'specialist':'admin';await SiteAPI.switchDemoRole(next);await updateRoleSwitch();await show(next==='admin'?0:9)}catch(error){message(error.message)}};
   function updateMarks(){
-    [...$('adminNav').children].forEach((b,i)=>b.classList.toggle('unsaved',AdminDraftStore.keys().some(k=>k.split('/')[0]===keys[i])));
+    [...$('adminNav').children].forEach((b,i)=>b.classList.toggle('unsaved',AdminDraftStore.keys().some(k=>k.split('/')[0]===keys[i]||(i===8&&k.startsWith('specialists/')))));
   }
   window.addEventListener('admin-drafts',updateMarks);
   function bindDraft(form,key){
@@ -400,77 +400,88 @@
       for(const service of serviceList){const choice=inputField(qualificationForm,service.name+' · '+service.id,'serviceId','checkbox',qualifications.some(item=>item.id===service.id));choice.value=service.id}
       formActions(qualificationForm);profileEdit.append(qualificationForm);bindDraft(qualificationForm,'specialists/'+profile.id+'/services');row.append(profileEdit);
       const schedule=await SiteAPI.getSpecialistSchedule(profile.id);
+      const scheduleDraftKey='specialists/'+profile.id+'/schedule',savedScheduleDraft=AdminDraftStore.get(scheduleDraftKey);
+      const editorWeek=savedScheduleDraft?.week||schedule?.week||{},editorOverrides=savedScheduleDraft?.overrides||schedule?.overrides||{};
       const editSchedule=element('details');
       editSchedule.append(element('summary','Личный недельный график'));
       const scheduleForm=element('form',undefined,'edit-form');
       const dayNames=['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
-      const dayRows=[];
+      const dayRows=[];let trackScheduleDraft=false;
+      const readWeekly=()=>{const days=[...scheduleForm.querySelectorAll('fieldset')];return Object.fromEntries([0,1,2,3,4,5,6].map(day=>[day,[...days[day].querySelectorAll('.specialist-interval')].map(item=>({start:item.querySelector('[data-time="start"]').value,end:item.querySelector('[data-time="end"]').value}))]))};
+      const discardScheduleDraft=button('Отменить черновик графика',()=>{if(confirm('Отменить несохранённые изменения личного графика?')){AdminDraftStore.clear(scheduleDraftKey);show(current)}},'admin-action');discardScheduleDraft.hidden=!savedScheduleDraft;
+      const recordScheduleDraft=()=>{if(trackScheduleDraft){AdminDraftStore.set(scheduleDraftKey,{week:readWeekly(),overrides:editorOverrides});discardScheduleDraft.hidden=false;updateMarks()}};
       for(let day=0;day<7;day++){
         const dayBlock=element('fieldset',undefined,'specialist-day');
         dayBlock.append(element('legend',dayNames[day]));
-        const intervals=(schedule?.week?.[day]||[]).map(interval=>({...interval}));
+        const intervals=(editorWeek[day]||[]).map(interval=>({...interval}));
         const list=element('div',undefined,'specialist-intervals');
         const sync=()=>{dayRows[day]=[...list.querySelectorAll('.specialist-interval')].map(item=>({start:item.querySelector('[data-time="start"]').value,end:item.querySelector('[data-time="end"]').value}))};
         const addInterval=(interval={start:'09:00',end:'19:00'})=>{
           const item=element('div',undefined,'specialist-interval');item.classList.add('specialist-interval');
           const start=element('input');start.type='time';start.value=interval.start||'09:00';start.setAttribute('data-time','start');start.setAttribute('aria-label',dayNames[day]+' начало интервала');
           const end=element('input');end.type='time';end.value=interval.end||'19:00';end.setAttribute('data-time','end');end.setAttribute('aria-label',dayNames[day]+' конец интервала');
-          const remove=button('Убрать интервал',()=>{item.remove();sync()},'admin-action');
-          item.append(start,end,remove);list.append(item);sync();
+          const remove=button('Убрать интервал',()=>{item.remove();sync();recordScheduleDraft()},'admin-action');
+          item.append(start,end,remove);list.append(item);sync();recordScheduleDraft();
         };
         for(const interval of intervals)addInterval(interval);
         const add=button('Добавить интервал',()=>addInterval(),'admin-action');
         list.addEventListener('input',sync);dayBlock.append(list,add);scheduleForm.append(dayBlock);
       }
-      const saveSchedule=element('button','Сохранить график','btn');saveSchedule.type='submit';scheduleForm.append(saveSchedule);
+      const saveSchedule=element('button','Сохранить график','btn');saveSchedule.type='submit';scheduleForm.append(saveSchedule,discardScheduleDraft);
+      scheduleForm.addEventListener('input',recordScheduleDraft);scheduleForm.addEventListener('change',recordScheduleDraft);trackScheduleDraft=true;
       scheduleForm.onsubmit=async event=>{
         event.preventDefault();
         try{
-          const week={};
+          const week=readWeekly();
           for(let day=0;day<7;day++){
-            const intervals=[...scheduleForm.querySelectorAll('fieldset')][day].querySelectorAll('.specialist-interval');
-            const values=[...intervals].map(item=>({start:item.querySelector('[data-time="start"]').value,end:item.querySelector('[data-time="end"]').value}));
+            const values=week[day];
             if(values.some(item=>!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(item.start)||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(item.end)||item.start>=item.end))throw new Error('Проверьте интервалы: конец должен быть позже начала.');
             values.sort((a,b)=>a.start.localeCompare(b.start));
             if(values.some((item,index)=>index>0&&values[index-1].end>item.start))throw new Error('Интервалы одного дня не должны пересекаться.');
-            week[day]=values;
           }
-          await SiteAPI.setSpecialistSchedule(profile.id,{week,overrides:schedule?.overrides||{},expectedRevision:schedule?.dataRevision});
+          await SiteAPI.setSpecialistSchedule(profile.id,{week,overrides:editorOverrides,expectedRevision:schedule?.dataRevision});
+          AdminDraftStore.clear(scheduleDraftKey);
           await show(current);message('Личный график сохранён.');
         }catch(error){message(error.message)}
       };
       editSchedule.append(scheduleForm);
       const exceptions=element('details');exceptions.append(element('summary','Исключения по датам'));
-      for(const [date,rule] of Object.entries(schedule?.overrides||{}).sort(([a],[b])=>a.localeCompare(b))){
+      for(const [date,rule] of Object.entries(editorOverrides).sort(([a],[b])=>a.localeCompare(b))){
         const exception=card(date,rule.kind==='off'?'Выходной':(rule.intervals||[]).map(item=>item.start+'–'+item.end).join(', ')||'Рабочее время не задано');
-        exception.append(action('Удалить исключение',async()=>{const overrides={...schedule.overrides};delete overrides[date];await SiteAPI.setSpecialistSchedule(profile.id,{week:schedule.week,overrides,expectedRevision:schedule.dataRevision})},`Удалить исключение на ${date}?`,'danger'));exceptions.append(exception);
+        exception.append(action('Удалить исключение',async()=>{if(AdminDraftStore.hasChanges(scheduleDraftKey))throw new Error('Сначала сохраните или отмените изменения недельного графика.');const overrides={...editorOverrides};delete overrides[date];await SiteAPI.setSpecialistSchedule(profile.id,{week:schedule.week,overrides,expectedRevision:schedule.dataRevision})},`Удалить исключение на ${date}?`,'danger'));exceptions.append(exception);
       }
       const overrideForm=element('form',undefined,'edit-form');
-      const overrideDate=inputField(overrideForm,'Дата','overrideDate','date','',{required:true});
-      const overrideKind=inputField(overrideForm,'Правило','overrideKind','select','working',{choices:[['working','Рабочие интервалы'],['off','Выходной']]});
+      const overrideDraftKey='specialists/'+profile.id+'/date-override',savedOverrideDraft=AdminDraftStore.get(overrideDraftKey);let trackOverrideDraft=false;
+      const overrideDate=inputField(overrideForm,'Дата','overrideDate','date',savedOverrideDraft?.date||'',{required:true});
+      const overrideKind=inputField(overrideForm,'Правило','overrideKind','select',savedOverrideDraft?.kind||'working',{choices:[['working','Рабочие интервалы'],['off','Выходной']]});
       const overrideIntervals=element('div',undefined,'specialist-intervals');
+      const readOverrideIntervals=()=>[...overrideIntervals.querySelectorAll('.specialist-interval')].map(item=>({start:item.querySelector('input').value,end:item.querySelectorAll('input')[1].value}));
+      const discardOverrideDraft=button('Отменить черновик исключения',()=>{if(confirm('Отменить несохранённые изменения исключения?')){AdminDraftStore.clear(overrideDraftKey);show(current)}},'admin-action');discardOverrideDraft.hidden=!savedOverrideDraft;
+      const recordOverrideDraft=()=>{if(trackOverrideDraft){AdminDraftStore.set(overrideDraftKey,{date:overrideDate.value,kind:overrideKind.value,intervals:readOverrideIntervals()});discardOverrideDraft.hidden=false;updateMarks()}};
       const addOverrideInterval=(interval={start:'09:00',end:'19:00'})=>{
         const item=element('div',undefined,'specialist-interval');
         const start=element('input');start.type='time';start.value=interval.start||'09:00';start.setAttribute('aria-label','Начало интервала исключения');
         const end=element('input');end.type='time';end.value=interval.end||'19:00';end.setAttribute('aria-label','Конец интервала исключения');
-        item.append(start,end,button('Убрать интервал',()=>item.remove(),'admin-action'));overrideIntervals.append(item);
+        item.append(start,end,button('Убрать интервал',()=>{item.remove();recordOverrideDraft()},'admin-action'));overrideIntervals.append(item);recordOverrideDraft();
       };
-      addOverrideInterval();
+      for(const interval of savedOverrideDraft?.intervals||[{start:'09:00',end:'19:00'}])addOverrideInterval(interval);
       const intervalControls=element('div');intervalControls.append(overrideIntervals,button('Добавить интервал',()=>addOverrideInterval(),'admin-action'));
       const toggleOverride=()=>{intervalControls.hidden=overrideKind.value==='off'};overrideKind.addEventListener('change',toggleOverride);toggleOverride();
+      overrideForm.addEventListener('input',recordOverrideDraft);overrideForm.addEventListener('change',recordOverrideDraft);trackOverrideDraft=true;
       overrideForm.append(intervalControls);
       overrideForm.onsubmit=async event=>{
         event.preventDefault();
         try{
-          const kind=overrideKind.value,intervals=kind==='off'?[]:[...overrideIntervals.querySelectorAll('.specialist-interval')].map(item=>({start:item.querySelector('input').value,end:item.querySelectorAll('input')[1].value}));
+          const kind=overrideKind.value,intervals=kind==='off'?[]:readOverrideIntervals();
           if(kind==='working'&&(!intervals.length||intervals.some(item=>!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(item.start)||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(item.end)||item.start>=item.end)))throw new Error('Добавьте корректные интервалы рабочего дня.');
           intervals.sort((a,b)=>a.start.localeCompare(b.start));
           if(intervals.some((item,index)=>index>0&&intervals[index-1].end>item.start))throw new Error('Интервалы одного дня не должны пересекаться.');
-          const overrides={...(schedule?.overrides||{}),[overrideDate.value]:{kind,intervals}};
-          await SiteAPI.setSpecialistSchedule(profile.id,{week:schedule?.week||{},overrides,expectedRevision:schedule?.dataRevision});await show(current);message('Исключение графика сохранено.');
+          if(AdminDraftStore.hasChanges(scheduleDraftKey))throw new Error('Сначала сохраните или отмените изменения недельного графика.');
+          const overrides={...editorOverrides,[overrideDate.value]:{kind,intervals}};
+          await SiteAPI.setSpecialistSchedule(profile.id,{week:schedule?.week||{},overrides,expectedRevision:schedule?.dataRevision});AdminDraftStore.clear(overrideDraftKey);await show(current);message('Исключение графика сохранено.');
         }catch(error){message(error.message)}
       };
-      const saveOverride=element('button','Сохранить исключение','btn');saveOverride.type='submit';overrideForm.append(saveOverride);exceptions.append(overrideForm);editSchedule.append(exceptions);row.append(editSchedule);
+      const saveOverride=element('button','Сохранить исключение','btn');saveOverride.type='submit';overrideForm.append(saveOverride,discardOverrideDraft);exceptions.append(overrideForm);editSchedule.append(exceptions);row.append(editSchedule);
       if(profile.state==='active'){
         row.append(button('Создать демо-доступ',async()=>{
           const login=prompt('Учебный логин для специалиста:');if(!login)return;
