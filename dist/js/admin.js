@@ -1,8 +1,8 @@
 (() => {
   if(!APP_CONFIG.demoMode) return;
   const dialog=$('admin'),page=$('adminPage'),trigger=$('adminOpen');
-  const sections=['Обзор','Записи','Клиенты','Услуги','Расписание','Содержимое сайта','Оформление','Демо-настройки'];
-  const keys=['overview','bookings','clients','services','schedule','content','appearance','demo'];
+  const sections=['Обзор','Записи','Клиенты','Услуги','Расписание','Содержимое сайта','Оформление','Демо-настройки','Специалисты'];
+  const keys=['overview','bookings','clients','services','schedule','content','appearance','demo','specialists'];
   const statuses={pending_confirmation:'Необходимо подтверждение',confirmed:'Подтверждена',completed:'Завершена',cancelled:'Отменена'};
   let current=0,generation=0,restoreTheme,publicScroll=0,switching=false;
   const visitor=$('visitor'),motion=()=>!matchMedia('(prefers-reduced-motion:reduce)').matches&&!document.documentElement.classList.contains('no-motion');
@@ -328,7 +328,7 @@
     for(const [label,fn] of [['Сбросить услуги',SiteAPI.resetServices],['Очистить записи',SiteAPI.clearBookings],['Восстановить палитру',()=>SiteAPI.updateSettings({palette:initialData().settings.palette})],['Очистить клиентов и записи',SiteAPI.clearClientsAndBookings],['Полный сброс демо-данных',async()=>{await SiteAPI.resetDemoData();AdminDraftStore.clearAll()}]])
       page.append(action(label,fn,label+' в этом браузере?','danger'));
   }
-  const views=[overview,bookings,clients,services,schedule,content,appearance,demo];
+${insert}  const views=[overview,bookings,clients,services,schedule,content,appearance,demo,specialists];
   async function show(index){
     const token=++generation;discardPreview();current=index;message('');
     $('adminSection').textContent=index===0?'Обзор кабинета':sections[index];
