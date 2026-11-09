@@ -96,6 +96,9 @@ async function run() {
     fullName: 'Клиент Второй',
     phone: '+79992222222'
   });
+  const candidates = await api.getAssignmentCandidates(first.id);
+  assert.ok(Array.isArray(candidates.reasons));
+  assert.ok(candidates.candidates.every(item => Array.isArray(item.roomIds) && !Object.hasOwn(item, 'roomId')));
 
   const preview = await api.previewBookingAssignment(first.id, {
     specialistId: 'sp-001',
