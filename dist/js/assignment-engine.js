@@ -126,7 +126,7 @@
       allocations: feasible ? allocation : {},
       reason: uncertain ? 'CAPACITY_CHECK_LIMIT' : feasible ? null : 'GLOBAL_CAPACITY_CONFLICT',
       examinedNodes,
-      affectedBookingIds: feasible ? [] : bookings.filter(row => row.id !== candidate?.id).map(row => row.id)
+      affectedBookingIds: feasible ? [] : bookings.filter(row => row.id !== anchorId).map(row => row.id)
     };
   }
 
