@@ -293,13 +293,13 @@ const DemoAPI = (() => {
       const changed=list.filter(d=>live.some(s=>available(db,d,s.id).join()!==available(alternate,d,s.id).join())).length;
       return {changed,conflicts:db.bookings.filter(r=>activeRequest(r)&&r.date>=a&&r.date<=b&&!fits(db,r,effective(db,r.date,mode))).length};
     },
-    setScheduleMode:mode=>change(db=>{check(['simple','advanced'].includes(mode));log(db,'Переключение режима',db.schedule.activeMode,mode);db.schedule.activeMode=mode}),
-    setDraftSchedule:(date,data)=>change(db=>applyDraft(db,{[date]:data},'Изменение дня')),
-    setDraftScheduleRange:(a,b,data)=>change(db=>applyDraft(db,Object.fromEntries(dates(a,b).map(d=>[d,data.week?data.week[new Date(d+'T12:00').getDay()]:data])),'Черновик диапазона')),
-    copySimpleScheduleToDraft:(a,b)=>change(db=>applyDraft(db,Object.fromEntries(dates(a,b).map(d=>[d,simple(db,d)])),'Копирование недельного графика')),
+    setScheduleMode:mode=>change(db=>{requireAdmin(db);check(['simple','advanced'].includes(mode));log(db,'Переключение режима',db.schedule.activeMode,mode);db.schedule.activeMode=mode}),
+    setDraftSchedule:(date,data)=>change(db=>{requireAdmin(db);return applyDraft(db,{[date]:data},'Изменение дня')}),
+    setDraftScheduleRange:(a,b,data)=>change(db=>{requireAdmin(db);return applyDraft(db,Object.fromEntries(dates(a,b).map(d=>[d,data.week?data.week[new Date(d+'T12:00').getDay()]:data])),'Черновик диапазона')}),
+    copySimpleScheduleToDraft:(a,b)=>change(db=>{requireAdmin(db);return applyDraft(db,Object.fromEntries(dates(a,b).map(d=>[d,simple(db,d)])),'Копирование недельного графика')}),
     async previewSchedulePublication(a,b){const db=read();return preview(db,subset(db.schedule.drafts,a,b))},
     publishScheduleRange:(a,b)=>change(db=>{
-      const changes=subset(db.schedule.drafts,a,b),before={};
+      requireAdmin(db);const changes=subset(db.schedule.drafts,a,b),before={};
       for(const [d,rule] of Object.entries(changes)){
         before[d]=db.schedule.published[d]||emptyDay();
         if(rule.kind==='unplanned') delete db.schedule.published[d];else db.schedule.published[d]=rule;
@@ -307,10 +307,10 @@ const DemoAPI = (() => {
       }
       if(Object.keys(changes).length) log(db,'Публикация',before,changes);
     }),
-    unpublishDate:d=>change(db=>applyDraft(db,{[d]:emptyDay()},'Снятие с публикации в черновике')),
-    async getScheduleHistory(){return read().schedule.history},
+    unpublishDate:d=>change(db=>{requireAdmin(db);return applyDraft(db,{[d]:emptyDay()},'Снятие с публикации в черновике')}),
+    async getScheduleHistory(){const db=read();requireAdmin(db);return db.schedule.history},
     async previewRestore(id){const db=read();return preview(db,find(db.schedule.history,id).before)},
-    restoreScheduleVersion:id=>change(db=>{const h=find(db.schedule.history,id);check(typeof h.before==='object');applyDraft(db,h.before,'Восстановление в черновик')}),
+    restoreScheduleVersion:id=>change(db=>{requireAdmin(db);const h=find(db.schedule.history,id);check(typeof h.before==='object');applyDraft(db,h.before,'Восстановление в черновик')}),
     getWarning:()=>warning,
     async getServices(){return read().services.sort((a,b)=>a.sortOrder-b.sortOrder)},
     async getServiceById(id){return find(read().services,id)},
@@ -401,7 +401,8 @@ const DemoAPI = (() => {
     async getBookingAssignmentEvents(id){const db=read();requireAdmin(db);return db.assignmentEvents.filter(event=>event.bookingId===id)},
     async getBookings(){const db=read();requireAdmin(db);return db.bookings},
     async getAvailableSlots(date,id){return available(read(),date,id)},
-    createBooking:data=>change(db=>{
+    async createBooking(){throw Object.assign(new Error('Используйте createBookingRequest.'),{code:'DEPRECATED_DEMO_METHOD'})},
+    _legacyCreateBooking:data=>change(db=>{
       check(available(db,data.date,data.serviceId).includes(data.time),'Это время уже недоступно. Выберите другое.','SLOT_UNAVAILABLE');
       const b={...snapshot(find(db.services,data.serviceId)),id:uid(),date:data.date,time:data.time,status:'confirmed'};
       db.bookings.push(b);return b;
@@ -442,18 +443,18 @@ const DemoAPI = (() => {
       b.status='pending_confirmation';b.updatedAt=new Date().toISOString();delete b.confirmedAt;return b;
     }),
     updateBooking:(id,{status})=>change(db=>{check(status!=='completed','Завершение доступно только назначенному специалисту.','ROLE_FORBIDDEN');return transition(db,id,status)}),
-    clearClientsAndBookings:()=>change(db=>{db.bookings=[];db.clients=[]}),
+    clearClientsAndBookings:()=>change(db=>{requireAdmin(db);db.bookings=[];db.clients=[]}),
     deleteBooking:id=>change(db=>{requireAdmin(db);find(db.bookings,id);db.bookings=db.bookings.filter(b=>b.id!==id)}),
     async getSettings(){return read().settings},
     updateSettings:data=>change(db=>{requireAdmin(db);return db.settings={...db.settings,...data,palette:{...db.settings.palette,...data.palette}}}),
     resetSettings:()=>change(db=>{requireAdmin(db);return db.settings=initialData().settings}),
     async getContent(){return read().content},
     updateContent:data=>change(db=>{requireAdmin(db);return Object.assign(db.content,data)}),
-    resetServices:()=>change(db=>(db.services=initialData().services)),
-    clearBookings:()=>change(db=>(db.bookings=[])),
-    async resetDemoData(){write(migrate(initialData()))},
+    resetServices:()=>change(db=>{requireAdmin(db);return db.services=initialData().services}),
+    clearBookings:()=>change(db=>{requireAdmin(db);return db.bookings=[]}),
+    async resetDemoData(){const db=read();requireAdmin(db);write(migrate(initialData()))},
     async exportData(){const db=read();requireAdmin(db);return db},
-    async importData(data){const db=migrate(clone(data));validate(db);write(db)}
+    async importData(data){requireAdmin(read());const db=migrate(clone(data));validate(db);write(db)}
   };
 })();
 const SiteAPI = DemoAPI;
