@@ -134,6 +134,32 @@ async function run() {
     assert.equal(Object.hasOwn(dto, 'clientId'), false);
     assert.equal(Object.hasOwn(dto, 'completion'), false);
   }
+  await assert.rejects(api.getSpecialistSchedule('sp-001'), error => error.code === 'ROLE_FORBIDDEN');
+  await assert.rejects(api.getRoomsAndServicesForSpecialist('sp-001'), error => error.code === 'ROLE_FORBIDDEN');
+  await api.switchDemoRole('admin');
+  await api.setSpecialistServices(specialist.id, []);
+  await api.switchDemoRole('specialist');
+  const absenceDate = '2026-12-01';
+  const unaffected = await api.getAvailableSlots(absenceDate, 'classic');
+  assert.ok(unaffected.includes('15:00'));
+  await api.submitMyAbsence({ kind: 'day_off', scope: 'partial_day', startDate: absenceDate, endDate: absenceDate, startTime: '14:00', endTime: '17:00', reason: 'Тест частичного отсутствия' });
+  assert.ok((await api.getAvailableSlots(absenceDate, 'classic')).includes('15:00'));
+  await api.switchDemoRole('admin');
+  const absence = (await api.getAbsenceRequests({ status: 'pending' })).find(item => item.startDate === absenceDate);
+  const absencePreview = await api.previewAbsenceApproval(absence.id);
+  await api.approveAbsence(absence.id, { expectedRevision: absencePreview.revision, acknowledgedBookingIds: [] });
+  assert.ok(!(await api.getAvailableSlots(absenceDate, 'classic')).includes('15:00'));
+
+  const schedule = await api.getSpecialistSchedule('sp-001');
+  assert.equal(schedule.dataRevision, (await api.exportData()).revision);
+  await api.updateSpecialist('sp-001', { fullName: 'Специалист владелец' });
+  await assert.rejects(api.setSpecialistSchedule('sp-001', { week: schedule.week, overrides: schedule.overrides, expectedRevision: schedule.dataRevision }), error => error.code === 'STALE_REVISION');
+  const beforeInvalidSchedule = await api.exportData();
+  const badWeek = structuredClone(schedule.week);
+  badWeek[1] = [{ start: '12:00', end: '11:00' }];
+  await assert.rejects(api.setSpecialistSchedule('sp-001', { week: badWeek, overrides: schedule.overrides }), error => error.code === 'INVALID_DATABASE');
+  assert.equal((await api.exportData()).revision, beforeInvalidSchedule.revision);
+  console.log('PASS partial absence, role guards, and schedule validation');
   console.log('PASS specialist mutation privacy DTO');
   console.log('PASS indirect assignment conflict lifecycle');
 }
