@@ -402,11 +402,6 @@ const DemoAPI = (() => {
     async getBookings(){const db=read();requireAdmin(db);return db.bookings},
     async getAvailableSlots(date,id){return available(read(),date,id)},
     async createBooking(){throw Object.assign(new Error('Используйте createBookingRequest.'),{code:'DEPRECATED_DEMO_METHOD'})},
-    _legacyCreateBooking:data=>change(db=>{
-      check(available(db,data.date,data.serviceId).includes(data.time),'Это время уже недоступно. Выберите другое.','SLOT_UNAVAILABLE');
-      const b={...snapshot(find(db.services,data.serviceId)),id:uid(),date:data.date,time:data.time,status:'confirmed'};
-      db.bookings.push(b);return b;
-    }),
     async getClients(){const db=read();requireAdmin(db);return db.clients},
     async getClientById(id){const db=read();requireAdmin(db);return find(db.clients,id)},
     async findClientByPhone(phone){const db=read();requireAdmin(db);return db.clients.find(c=>c.phoneNormalized===phoneNumber(phone))||null},
