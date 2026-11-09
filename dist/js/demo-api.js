@@ -359,7 +359,7 @@ const DemoAPI = (() => {
     async previewRestore(id){const db=read();return preview(db,find(db.schedule.history,id).before)},
     restoreScheduleVersion:id=>change(db=>{requireAdmin(db);const h=find(db.schedule.history,id);check(typeof h.before==='object');applyDraft(db,h.before,'Восстановление в черновик')}),
     getWarning:()=>warning,
-    async getServices(){return read().services.sort((a,b)=>a.sortOrder-b.sortOrder)},
+    async getServices(){return read().services.sort((a,b)=>a.sortOrder-b.sortOrder||a.id.localeCompare(b.id))},
     async getServiceById(id){return find(read().services,id)},
     createService:data=>change(db=>{requireAdmin(db);const row={...data,id:uid()};db.services.push(row);return row}),
     updateService:(id,data)=>change(db=>{requireAdmin(db);return Object.assign(find(db.services,id),data,{id})}),
@@ -399,7 +399,7 @@ const DemoAPI = (() => {
       const request=find(db.absenceRequests,id);check(request.status==='pending','Заявка уже обработана.','INVALID_STATUS_TRANSITION');check(str(String(reason).trim(),500),'Укажите причину отказа.');
       request.status='rejected';request.decisionReason=String(reason).trim();request.updatedAt=new Date().toISOString();db.auditEvents.push({id:uid(),action:'ABSENCE_REJECTED',absenceRequestId:id,at:request.updatedAt});return request;
     }),
-    async getSpecialists({includeArchived=true}={}){const db=read();requireAdmin(db);return db.specialists.filter(row=>includeArchived||row.state==='active')},
+    async getSpecialists({includeArchived=true}={}){const db=read();requireAdmin(db);return db.specialists.filter(row=>includeArchived||row.state==='active').sort((a,b)=>a.fullName.localeCompare(b.fullName)||a.id.localeCompare(b.id))},
     createSpecialist:data=>change(db=>{
       requireAdmin(db);const fullName=String(data.fullName||'').trim();check(str(fullName,120),'Укажите имя специалиста.');
       const id=uid(),now=new Date().toISOString();
@@ -411,7 +411,7 @@ const DemoAPI = (() => {
     }),
     updateSpecialist:(id,data)=>change(db=>{requireAdmin(db);const row=find(db.specialists,id);const fullName=String(data.fullName??row.fullName).trim();check(str(fullName,120));row.fullName=fullName;return row}),
     archiveSpecialist:id=>change(db=>{requireAdmin(db);const row=find(db.specialists,id);row.state='archived';row.archivedAt=new Date().toISOString();refreshReassignmentFlags(db,booking=>booking.specialistId===id);return row}),
-    async getRooms({includeInactive=false}={}){const db=read();requireAdmin(db);return db.rooms.filter(room=>includeInactive||room.isActive)},
+    async getRooms({includeInactive=false}={}){const db=read();requireAdmin(db);return db.rooms.filter(room=>includeInactive||room.isActive).sort((a,b)=>a.sortOrder-b.sortOrder||a.id.localeCompare(b.id))},
     createRoom:data=>change(db=>{requireAdmin(db);const name=String(data.name||'').trim();check(str(name,80));const room={id:uid(),name,isActive:true,sortOrder:num(data.sortOrder??0,0,9999)?(data.sortOrder??0):0};db.rooms.push(room);return room}),
     updateRoom:(id,data)=>change(db=>{requireAdmin(db);const room=find(db.rooms,id);if(data.name!==undefined){check(str(String(data.name).trim(),80));room.name=String(data.name).trim()}if(typeof data.isActive==='boolean')room.isActive=data.isActive;if(data.sortOrder!==undefined)room.sortOrder=data.sortOrder;refreshReassignmentFlags(db,booking=>booking.roomId===id);return room}),
     setSpecialistServices:(id,serviceIds)=>change(db=>{requireAdmin(db);find(db.specialists,id);check(Array.isArray(serviceIds));for(const serviceId of serviceIds)find(db.services,serviceId);db.specialistServices=db.specialistServices.filter(row=>row.specialistId!==id);for(const serviceId of [...new Set(serviceIds)])db.specialistServices.push({specialistId:id,serviceId});refreshReassignmentFlags(db,booking=>booking.specialistId===id);return {specialistId:id,serviceIds:[...new Set(serviceIds)],revision:db.revision+1}}),
@@ -435,11 +435,11 @@ const DemoAPI = (() => {
       return db.assignmentEvents.filter(event=>event.fromSpecialistId===account.specialistId||event.toSpecialistId===account.specialistId).map(event=>{
         const booking=db.bookings.find(row=>row.id===event.bookingId);
         return {id:event.id,bookingId:event.bookingId,at:event.at,date:booking?.date||null,time:booking?.time||null,serviceName:booking?.name||null,assigned:event.toSpecialistId===account.specialistId};
-      });
+      }).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.time||'').localeCompare(b.time||'')||a.id.localeCompare(b.id));
     },
     async switchDemoRole(role){return change(db=>{const account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId);check(account&&account.roles.includes(role),'Роль недоступна.','ROLE_FORBIDDEN');db.demoSession.activeRole=role;return {accountId:account.id,activeRole:role}})},
     async selectDemoAccount(accountId){return change(db=>{const account=find(db.accounts,accountId);db.demoSession.activeAccountId=account.id;db.demoSession.activeRole=account.roles.includes('admin')?'admin':'specialist';return {accountId:account.id,activeRole:db.demoSession.activeRole,firstDemoLoginRequired:account.mustCompleteFirstDemoLogin}})},
-    async getMyBookings(){const db=read(),account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId);check(db.demoSession.activeRole==='specialist'&&account?.specialistId,'Требуется роль специалиста.','ROLE_FORBIDDEN');return db.bookings.filter(b=>b.specialistId===account.specialistId&&['pending_confirmation','confirmed','completed'].includes(b.status)).map(b=>specialistBookingDTO(db,b))},
+    async getMyBookings(){const db=read(),account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId);check(db.demoSession.activeRole==='specialist'&&account?.specialistId,'Требуется роль специалиста.','ROLE_FORBIDDEN');return db.bookings.filter(b=>b.specialistId===account.specialistId&&['pending_confirmation','confirmed','completed'].includes(b.status)).map(b=>specialistBookingDTO(db,b)).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)||a.id.localeCompare(b.id))},
     async markMyBookingCompleted(id){return change(db=>{const account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId),booking=find(db.bookings,id);check(db.demoSession.activeRole==='specialist'&&account?.specialistId===booking.specialistId,'Доступ запрещён.','ROLE_FORBIDDEN');check(booking.status==='confirmed','Запись нельзя завершить.','INVALID_STATUS_TRANSITION');const end=new Date(booking.date+'T'+booking.time);end.setMinutes(end.getMinutes()+booking.durationMinutes);check(Date.now()>=end.getTime(),'Сеанс ещё не завершён.','NOT_ENDED_YET');booking.status='completed';booking.completion={bySpecialistId:account.specialistId,at:new Date().toISOString()};db.auditEvents.push({id:uid(),action:'BOOKING_COMPLETED',bookingId:id,at:booking.completion.at});return specialistBookingDTO(db,booking)})},
     async getAssignmentCandidates(id){
       const db=read();requireAdmin(db);const booking=find(db.bookings,id),candidates=[],reasons=new Set();
@@ -479,10 +479,10 @@ const DemoAPI = (() => {
       return booking;
     }),
     async getBookingAssignmentEvents(id){const db=read();requireAdmin(db);return db.assignmentEvents.filter(event=>event.bookingId===id)},
-    async getBookings(){const db=read();requireAdmin(db);return db.bookings},
+    async getBookings(){const db=read();requireAdmin(db);return db.bookings.sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)||a.id.localeCompare(b.id))},
     async getAvailableSlots(date,id){return available(read(),date,id)},
     async createBooking(){throw Object.assign(new Error('Используйте createBookingRequest.'),{code:'DEPRECATED_DEMO_METHOD'})},
-    async getClients(){const db=read();requireAdmin(db);return db.clients},
+    async getClients(){const db=read();requireAdmin(db);return db.clients.sort((a,b)=>a.fullName.localeCompare(b.fullName)||a.id.localeCompare(b.id))},
     async getClientById(id){const db=read();requireAdmin(db);return find(db.clients,id)},
     async findClientByPhone(phone){const db=read();requireAdmin(db);return db.clients.find(c=>c.phoneNormalized===phoneNumber(phone))||null},
     createClient:data=>change(db=>{requireAdmin(db);return newClient(db,data)}),
@@ -491,7 +491,7 @@ const DemoAPI = (() => {
       return Object.assign(c,fields,{updatedAt:new Date().toISOString()});
     }),
     async getClientBookings(id){const db=read();requireAdmin(db);return db.bookings.filter(b=>b.clientId===id)},
-    async getPendingBookings(){const db=read();requireAdmin(db);return db.bookings.filter(b=>b.status==='pending_confirmation')},
+    async getPendingBookings(){const db=read();requireAdmin(db);return db.bookings.filter(b=>b.status==='pending_confirmation').sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)||a.id.localeCompare(b.id))},
     createBookingRequest:data=>change(db=>{
       check(available(db,data.date,data.serviceId).includes(data.time),'Это время уже занято. Выберите другое время.','SLOT_UNAVAILABLE');
       const fields=identity(data);
