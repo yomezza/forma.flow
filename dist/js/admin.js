@@ -328,7 +328,35 @@
     for(const [label,fn] of [['Сбросить услуги',SiteAPI.resetServices],['Очистить записи',SiteAPI.clearBookings],['Восстановить палитру',()=>SiteAPI.updateSettings({palette:initialData().settings.palette})],['Очистить клиентов и записи',SiteAPI.clearClientsAndBookings],['Полный сброс демо-данных',async()=>{await SiteAPI.resetDemoData();AdminDraftStore.clearAll()}]])
       page.append(action(label,fn,label+' в этом браузере?','danger'));
   }
-${insert}  const views=[overview,bookings,clients,services,schedule,content,appearance,demo,specialists];
+  async function specialists(){
+    const profiles=await SiteAPI.getSpecialists(),rooms=await SiteAPI.getRooms({includeInactive:true}),serviceList=await SiteAPI.getServices();
+    page.append(element('h3','Специалисты'));
+    const create=formWithSave(async fields=>{
+      const serviceIds=fields.serviceIds.value.split(',').map(value=>value.trim()).filter(Boolean);
+      await SiteAPI.createSpecialist({fullName:fields.fullName.value,serviceIds,week:Object.fromEntries([0,1,2,3,4,5,6].map(day=>[day,[{start:'09:00',end:'19:00'}]]))});
+    });
+    inputField(create,'Имя специалиста','fullName','text','',{required:true,maxLength:120});
+    const servicesField=inputField(create,'ID услуг через запятую','serviceIds','text',serviceList.filter(item=>item.isActive).map(item=>item.id).join(', '),{required:false});
+    servicesField.placeholder=serviceList.map(item=>item.id).join(', ');
+    formActions(create);page.append(create);
+    for(const profile of profiles){
+      const qualifications=await SiteAPI.getRoomsAndServicesForSpecialist(profile.id);
+      const row=card(profile.fullName,`${profile.state==='active'?'Активен':'В архиве'} · ${qualifications.map(item=>item.name).join(', ')||'Услуги не назначены'}`);
+      if(profile.state==='active')row.append(action('Архивировать',()=>SiteAPI.archiveSpecialist(profile.id),`Архивировать профиль «${profile.fullName}»?`,'danger'));
+      page.append(row);
+    }
+    page.append(element('h3','Кабинеты'));
+    const roomForm=formWithSave(async fields=>SiteAPI.createRoom({name:fields.name.value,sortOrder:Number(fields.sortOrder.value)}));
+    inputField(roomForm,'Название кабинета','name','text','',{required:true});
+    inputField(roomForm,'Порядок','sortOrder','number','0',{required:true,min:0,max:9999});
+    formActions(roomForm);page.append(roomForm);
+    for(const room of rooms){
+      const row=card(room.name,room.isActive?'Доступен':'Отключён');
+      row.append(action(room.isActive?'Отключить':'Включить',()=>SiteAPI.updateRoom(room.id,{isActive:!room.isActive}),null));
+      page.append(row);
+    }
+  }
+  const views=[overview,bookings,clients,services,schedule,content,appearance,demo,specialists];
   async function show(index){
     const token=++generation;discardPreview();current=index;message('');
     $('adminSection').textContent=index===0?'Обзор кабинета':sections[index];
