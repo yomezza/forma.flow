@@ -77,6 +77,29 @@ async function run() {
   assert.ok(attention.items.some(item => item.bookingId === attentionBooking.id && item.code === 'NO_AVAILABLE_SPECIALIST' && item.severity && item.hint));
   console.log('PASS attention items include missing specialist capacity');
 
+  const maintenanceApi = createApi();
+  const maintainedBooking = await maintenanceApi.createBookingRequest({ serviceId: 'classic', date: '2026-12-10', time: '09:00', fullName: 'Клиент Назначенный', phone: '+79996666666' });
+  const maintainedPreview = await maintenanceApi.previewBookingAssignment(maintainedBooking.id, { specialistId: 'sp-001', roomId: 'room-001' });
+  await maintenanceApi.assignBooking(maintainedBooking.id, { specialistId: 'sp-001', roomId: 'room-001', expectedRevision: maintainedPreview.revision });
+  await maintenanceApi.archiveSpecialist('sp-001');
+  const afterArchive = (await maintenanceApi.exportData()).bookings.find(item => item.id === maintainedBooking.id);
+  assert.equal(afterArchive.specialistId, 'sp-001');
+  assert.equal(afterArchive.requiresReassignment, true);
+  console.log('PASS archive preserves assigned booking and raises reassignment warning');
+
+  const scheduleApi = createApi();
+  const scheduleBooking = await scheduleApi.createBookingRequest({ serviceId: 'classic', date: '2026-12-11', time: '09:00', fullName: 'Клиент График', phone: '+79997777777' });
+  let personalSchedule = await scheduleApi.getSpecialistSchedule('sp-001');
+  let assignment = await scheduleApi.previewBookingAssignment(scheduleBooking.id, { specialistId: 'sp-001', roomId: 'room-001' });
+  await scheduleApi.assignBooking(scheduleBooking.id, { specialistId: 'sp-001', roomId: 'room-001', expectedRevision: assignment.revision });
+  personalSchedule = await scheduleApi.getSpecialistSchedule('sp-001');
+  await scheduleApi.setSpecialistSchedule('sp-001', { week: personalSchedule.week, overrides: { '2026-12-11': { kind: 'off', intervals: [] } }, expectedRevision: personalSchedule.dataRevision });
+  assert.equal((await scheduleApi.exportData()).bookings.find(item => item.id === scheduleBooking.id).requiresReassignment, true);
+  personalSchedule = await scheduleApi.getSpecialistSchedule('sp-001');
+  await scheduleApi.setSpecialistSchedule('sp-001', { week: personalSchedule.week, overrides: {}, expectedRevision: personalSchedule.dataRevision });
+  assert.equal((await scheduleApi.exportData()).bookings.find(item => item.id === scheduleBooking.id).requiresReassignment, false);
+  console.log('PASS schedule changes raise and clear assignment warnings');
+
   const api = createApi();
   const ownAccount = await api.getMyDemoAccount();
   assert.deepEqual([...ownAccount.roles], ['admin', 'specialist']);
