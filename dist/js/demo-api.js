@@ -267,7 +267,7 @@ const DemoAPI = (() => {
       const db=read(),today=new Date();today.setHours(0,0,0,0);
       return Object.fromEntries(dates(a,b).map(d=>{
         const r=effective(db,d);
-        const state=new Date(d+'T00:00')<today?'past':r.kind==='working' && (!id||!available(db,d,id).length)?'full':r.reason||r.kind;
+        const state=new Date(d+'T00:00')<today?'past':r.kind==='working' && id&&!available(db,d,id).length?'full':r.reason||r.kind;
         return [d,state];
       }));
     },
