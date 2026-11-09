@@ -65,6 +65,18 @@ const DemoAPI = (() => {
     const sorted=[...list].sort((a,b)=>a.startDate.localeCompare(b.startDate));
     for(let i=1;i<sorted.length;i++)check(sorted[i-1].endDate<sorted[i].startDate,'Этот период пересекается с другим отпуском.');
   }
+  function specialistScheduleOK(schedule) {
+    check(schedule&&typeof schedule.specialistId==='string'&&Number.isSafeInteger(schedule.revision)&&schedule.revision>=0,'Некорректный график специалиста.','INVALID_DATABASE');
+    const validIntervals=intervals=>{
+      check(Array.isArray(intervals),'Некорректные интервалы графика.','INVALID_DATABASE');
+      let end='';
+      for(const interval of intervals){check(interval&&timePattern.test(interval.start)&&timePattern.test(interval.end)&&interval.start<interval.end&&(!end||end<=interval.start),'Интервалы графика должны быть корректными, упорядоченными и непересекающимися.','INVALID_DATABASE');end=interval.end}
+    };
+    check(schedule.week&&typeof schedule.week==='object'&&!Array.isArray(schedule.week),'Некорректная неделя специалиста.','INVALID_DATABASE');
+    for(let day=0;day<7;day++)validIntervals(schedule.week[day]);
+    check(schedule.overrides&&typeof schedule.overrides==='object'&&!Array.isArray(schedule.overrides),'Некорректные исключения специалиста.','INVALID_DATABASE');
+    for(const [date,rule] of Object.entries(schedule.overrides)){check(dateOK(date)&&rule&&['working','off'].includes(rule.kind),'Некорректное исключение специалиста.','INVALID_DATABASE');validIntervals(rule.intervals)}
+  }
   const containsDate=(v,d)=>d>=v.startDate && d<=v.endDate;
   const onVacation=(db,date)=>db.settings.vacations.some(v=>containsDate(v,date));
   function storeVacation(db,id,input,confirmedIds) {
@@ -196,6 +208,7 @@ const DemoAPI = (() => {
     settingsOK(db.settings);scheduleOK(db.schedule);
     check(Object.keys(initialData().content).every(k=>str(db.content?.[k])),'Заполните текстовые поля.');
     check(Array.isArray(db.specialists)&&Array.isArray(db.rooms)&&Array.isArray(db.specialistServices)&&Array.isArray(db.specialistSchedules)&&Array.isArray(db.absenceRequests)&&Array.isArray(db.accounts)&&Array.isArray(db.assignmentEvents)&&Array.isArray(db.auditEvents)&&Array.isArray(db.capacityExceptions),'Некорректная схема v4.');
+    db.specialistSchedules.forEach(specialistScheduleOK);
     check(db.demoSession&&typeof db.demoSession==='object','Некорректная сессия демо.');
     for(const b of db.bookings) check((b.specialistId==null||typeof b.specialistId==='string')&&(b.roomId==null||typeof b.roomId==='string')&&(b.assignmentUpdatedAt==null||typeof b.assignmentUpdatedAt==='string')&&(b.completion==null||typeof b.completion==='object'),'Некорректное назначение записи.');
   }
@@ -389,9 +402,9 @@ const DemoAPI = (() => {
     createRoom:data=>change(db=>{requireAdmin(db);const name=String(data.name||'').trim();check(str(name,80));const room={id:uid(),name,isActive:true,sortOrder:num(data.sortOrder??0,0,9999)?(data.sortOrder??0):0};db.rooms.push(room);return room}),
     updateRoom:(id,data)=>change(db=>{requireAdmin(db);const room=find(db.rooms,id);if(data.name!==undefined){check(str(String(data.name).trim(),80));room.name=String(data.name).trim()}if(typeof data.isActive==='boolean')room.isActive=data.isActive;if(data.sortOrder!==undefined)room.sortOrder=data.sortOrder;return room}),
     setSpecialistServices:(id,serviceIds)=>change(db=>{requireAdmin(db);find(db.specialists,id);check(Array.isArray(serviceIds));for(const serviceId of serviceIds)find(db.services,serviceId);db.specialistServices=db.specialistServices.filter(row=>row.specialistId!==id);for(const serviceId of [...new Set(serviceIds)])db.specialistServices.push({specialistId:id,serviceId});return {specialistId:id,serviceIds:[...new Set(serviceIds)],revision:db.revision+1}}),
-    async getSpecialistSchedule(id){const db=read(),schedule=db.specialistSchedules.find(row=>row.specialistId===id);return schedule?{...schedule,dataRevision:db.revision}:null},
-    setSpecialistSchedule:(id,data)=>change(db=>{requireAdmin(db);const row=db.specialistSchedules.find(item=>item.specialistId===id);check(row,'График специалиста не найден.','NOT_FOUND');if(data.expectedRevision!==undefined)check(data.expectedRevision===db.revision,'Данные изменились, обновите карточку.','STALE_REVISION');row.week=data.week;row.overrides=data.overrides||row.overrides;row.revision++;return {specialistId:id,revision:row.revision,warnings:[]}}),
-    async getRoomsAndServicesForSpecialist(id){const db=read();return db.specialistServices.filter(row=>row.specialistId===id).map(row=>db.services.find(service=>service.id===row.serviceId)).filter(Boolean)},
+    async getSpecialistSchedule(id){const db=read();requireAdmin(db);const schedule=db.specialistSchedules.find(row=>row.specialistId===id);return schedule?{...schedule,dataRevision:db.revision}:null},
+    setSpecialistSchedule:(id,data)=>change(db=>{requireAdmin(db);const row=db.specialistSchedules.find(item=>item.specialistId===id);check(row,'График специалиста не найден.','NOT_FOUND');if(data.expectedRevision!==undefined)check(data.expectedRevision===db.revision,'Данные изменились, обновите карточку.','STALE_REVISION');specialistScheduleOK({specialistId:id,revision:row.revision,week:data.week,overrides:data.overrides??row.overrides});row.week=data.week;row.overrides=data.overrides??row.overrides;row.revision++;const warnings=db.bookings.filter(booking=>booking.specialistId===id&&activeRequest(booking)&&!FormaAssignmentEngine.solveAssignments(db,{date:booking.date,anchorBookingId:booking.id,ignoreCapacityExceptions:true}).feasible).map(booking=>({bookingId:booking.id,code:'REQUIRES_REASSIGNMENT'}));for(const warning of warnings){const booking=db.bookings.find(item=>item.id===warning.bookingId);booking.requiresReassignment=true}return {specialistId:id,revision:row.revision,warnings}}),
+    async getRoomsAndServicesForSpecialist(id){const db=read();requireAdmin(db);return db.specialistServices.filter(row=>row.specialistId===id).map(row=>db.services.find(service=>service.id===row.serviceId)).filter(Boolean)},
     async getDemoAccounts(){const db=read();requireAdmin(db);return db.accounts.map(({id,login,displayName,roles,state,mustCompleteFirstDemoLogin})=>({id,login,displayName,roles,state,mustCompleteFirstDemoLogin}))},
     inviteDemoAccount:({displayName,login,roles=['specialist'],specialistId}={})=>change(db=>{
       requireAdmin(db);check(str(String(displayName||'').trim(),120)&&str(String(login||'').trim(),80),'Укажите имя и учебный логин.');
