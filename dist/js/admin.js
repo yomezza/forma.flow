@@ -385,7 +385,13 @@
     for(const profile of profiles){
       const qualifications=await SiteAPI.getRoomsAndServicesForSpecialist(profile.id);
       const row=card(profile.fullName,`${profile.state==='active'?'Активен':'В архиве'} · ${qualifications.map(item=>item.name).join(', ')||'Услуги не назначены'}`);
-      if(profile.state==='active')row.append(action('Архивировать',()=>SiteAPI.archiveSpecialist(profile.id),`Архивировать профиль «${profile.fullName}»?`,'danger'));
+      if(profile.state==='active'){
+        row.append(button('Создать демо-доступ',async()=>{
+          const login=prompt('Учебный логин для специалиста:');if(!login)return;
+          try{const invite=await SiteAPI.inviteDemoAccount({displayName:profile.fullName,login,roles:['specialist'],specialistId:profile.id});alert('Учебный вход: '+invite.temporaryLogin+'\\nОдноразовый демо-код: '+invite.temporaryDemoCode)}catch(error){message(error.message)}
+        },'admin-action'));
+        row.append(action('Архивировать',()=>SiteAPI.archiveSpecialist(profile.id),`Архивировать профиль «${profile.fullName}»?`,'danger'));
+      }
       page.append(row);
     }
     page.append(element('h3','Кабинеты'));
@@ -415,11 +421,15 @@
     page.append(element('h3','Кабинет специалиста'));
     const profile=(await SiteAPI.getDemoAccounts())[0];
     page.append(element('p','Демо-режим. Специалист видит только назначенные ему записи.'));
-    page.append(button('Перейти в режим специалиста',async()=>{try{await SiteAPI.switchDemoRole('specialist');await renderSpecialistWorkspace()}catch(error){message(error.message)}},'admin-action'));
+    const accounts=await SiteAPI.getDemoAccounts();
+    const accountSelect=element('select');accountSelect.setAttribute('aria-label','Учебный аккаунт специалиста');
+    for(const account of accounts.filter(item=>item.roles.includes('specialist'))){const option=element('option',account.displayName+' · '+account.login);option.value=account.id;accountSelect.append(option)}
+    page.append(accountSelect);
+    page.append(button('Перейти в режим специалиста',async()=>{try{await SiteAPI.selectDemoAccount(accountSelect.value);await SiteAPI.switchDemoRole('specialist');await renderSpecialistWorkspace()}catch(error){message(error.message)}},'admin-action'));
     const refresh=async()=>renderSpecialistWorkspace();
     async function renderSpecialistWorkspace(){
       page.replaceChildren(element('h3','Мои записи'));
-      page.append(button('Вернуться в режим администратора',async()=>{try{await SiteAPI.switchDemoRole('admin');await show(0)}catch(error){message(error.message)}},'admin-action'));
+      page.append(button('Вернуться в режим администратора',async()=>{try{await SiteAPI.selectDemoAccount('acct-owner');await SiteAPI.switchDemoRole('admin');await show(0)}catch(error){message(error.message)}},'admin-action'));
       try{
         const bookings=await SiteAPI.getMyBookings();
         for(const booking of bookings){
