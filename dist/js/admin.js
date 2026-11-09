@@ -137,6 +137,21 @@
       if(b.confirmedAt)more.append(element('p','Подтверждена '+stamp(b.confirmedAt)));
       if(b.cancelNote)more.append(element('p',b.cancelNote));
       if(client)more.append(button('Карточка клиента',()=>{profileId=client.id;show(2)},'admin-action'));
+      const assignedSpecialist=data.specialists?.find(item=>item.id===b.specialistId),assignedRoom=data.rooms?.find(item=>item.id===b.roomId);
+      if(b.specialistId)more.append(element('p',`Исполнитель: ${assignedSpecialist?.fullName||'Профиль недоступен'} · ${assignedRoom?.name||'Кабинет не назначен'}`));
+      if(['pending_confirmation','confirmed'].includes(b.status))more.append(button('Подобрать назначение',async()=>{
+        try{
+          const result=await SiteAPI.getAssignmentCandidates(b.id);
+          if(!result.candidates.length){message('Нет допустимых сочетаний специалиста и кабинета.');return}
+          const choices=result.candidates.map((candidate,index)=>{const specialist=data.specialists.find(item=>item.id===candidate.specialistId),room=data.rooms.find(item=>item.id===candidate.roomId);return `${index+1}. ${specialist?.fullName||candidate.specialistId} · ${room?.name||candidate.roomId}`}).join('\\n');
+          const selected=Number(prompt('Выберите назначение, введя его номер:\\n'+choices))-1;
+          if(!Number.isInteger(selected)||selected<0||selected>=result.candidates.length)return;
+          const candidate=result.candidates[selected],preview=await SiteAPI.previewBookingAssignment(b.id,candidate);
+          if(!preview.allowed){message('Назначение больше недоступно. Обновите карточку.');return}
+          await SiteAPI.assignBooking(b.id,{...candidate,expectedRevision:preview.revision});
+          show(1);
+        }catch(error){message(error.message)}
+      },'admin-action'));
       const bar=element('div',undefined,'row-actions');row.append(bar);contact(bar,phone);
       if(b.status==='pending_confirmation'){
         if(appointment(b)>Date.now()&&appointment(b)-Date.now()<86400000)more.append(element('p','До сеанса меньше суток.'));
