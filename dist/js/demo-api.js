@@ -245,9 +245,9 @@ const DemoAPI = (() => {
     for(const range of rule.intervals) for(let t=minutes(range.start);t+s.durationMinutes<=minutes(range.end);t+=rule.stepOverride||cfg.step) {
       const label=String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');
       if(new Date(date+'T'+label)<=new Date()) continue;
-      const overlaps=taken.some(b=>t<minutes(b.time)+b.durationMinutes+cfg.breakMinutes &&
-        minutes(b.time)<t+s.durationMinutes+cfg.breakMinutes);
-      if(!overlaps) slots.push(label);
+      const candidate={id:'__slot__',serviceId:s.id,date,time:label,durationMinutes:s.durationMinutes,status:'pending_confirmation',specialistId:null,roomId:null};
+      const placement=globalThis.FormaAssignmentEngine?.solveAssignments(db,{date,candidate});
+      if(placement?.feasible) slots.push(label);
     }
     return slots;
   }
@@ -326,13 +326,22 @@ const DemoAPI = (() => {
     async getPendingBookings(){return read().bookings.filter(b=>b.status==='pending_confirmation')},
     createBookingRequest:data=>change(db=>{
       check(available(db,data.date,data.serviceId).includes(data.time),'Это время уже занято. Выберите другое время.','SLOT_UNAVAILABLE');
-      const fields=identity(data),client=db.clients.find(c=>c.phoneNormalized===fields.phoneNormalized)||newClient(db,fields);
+      const fields=identity(data);
       const now=new Date().toISOString();
       const request={...snapshot(find(db.services,data.serviceId)),id:uid(),date:data.date,time:data.time,
-        clientId:client.id,clientName:fields.fullName,clientPhone:fields.phoneNormalized,status:'pending_confirmation',createdAt:now,updatedAt:now};
+        clientId:null,specialistId:null,roomId:null,assignmentUpdatedAt:null,completion:null,clientName:fields.fullName,clientPhone:fields.phoneNormalized,status:'pending_confirmation',createdAt:now,updatedAt:now};
       db.bookings.push(request);return request;
     }),
-    confirmBooking:id=>change(db=>transition(db,id,'confirmed')),
+    confirmBooking:id=>change(db=>{const b=find(db.bookings,id);check(b.clientId&&db.clients.some(c=>c.id===b.clientId),'Сначала привяжите карточку клиента.','CLIENT_LINK_REQUIRED');return transition(db,id,'confirmed')}),
+    async findClientsByPhone(phone){const normalized=phoneNumber(phone);return read().clients.filter(c=>c.phoneNormalized===normalized)},
+    assignBookingClient:(id,{clientId,newClient:clientData}={})=>change(db=>{
+      const booking=find(db.bookings,id);
+      const client=clientId?find(db.clients,clientId):clientData?newClient(db,clientData):null;
+      check(client,'Выберите или создайте карточку клиента.');
+      booking.clientId=client.id;
+      db.auditEvents.push({id:uid(),action:'CLIENT_LINKED',bookingId:id,clientId:client.id,at:new Date().toISOString()});
+      return booking;
+    }),
     cancelBooking:(id,note)=>change(db=>transition(db,id,'cancelled',note)),
     completeBooking:id=>change(db=>transition(db,id,'completed')),
     restoreBooking:id=>change(db=>{
