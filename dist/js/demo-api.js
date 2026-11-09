@@ -306,6 +306,38 @@ const DemoAPI = (() => {
     createService:data=>change(db=>{const row={...data,id:uid()};db.services.push(row);return row}),
     updateService:(id,data)=>change(db=>Object.assign(find(db.services,id),data,{id})),
     deleteService:id=>change(db=>{find(db.services,id);db.services=db.services.filter(s=>s.id!==id)}),
+    async getMyAbsenceRequests(){const db=read(),account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId);check(db.demoSession.activeRole==='specialist'&&account?.specialistId,'Требуется роль специалиста.','ROLE_FORBIDDEN');return db.absenceRequests.filter(item=>item.specialistId===account.specialistId)},
+    submitMyAbsence:data=>change(db=>{
+      const account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId);
+      check(db.demoSession.activeRole==='specialist'&&account?.specialistId,'Требуется роль специалиста.','ROLE_FORBIDDEN');
+      check(['day_off','vacation'].includes(data.kind)&&['full_days','partial_day'].includes(data.scope),'Проверьте тип отсутствия.');
+      check(dateOK(data.startDate)&&dateOK(data.endDate)&&data.startDate<=data.endDate,'Проверьте даты отсутствия.');
+      if(data.scope==='partial_day')check(data.startDate===data.endDate&&timePattern.test(data.startTime)&&timePattern.test(data.endTime)&&data.startTime<data.endTime,'Для частичного отсутствия укажите корректный интервал одного дня.');
+      else check(data.startTime==null&&data.endTime==null,'Для полного дня время указывать не нужно.');
+      const row={id:uid(),specialistId:account.specialistId,kind:data.kind,scope:data.scope,startDate:data.startDate,endDate:data.endDate,startTime:data.startTime||null,endTime:data.endTime||null,reason:String(data.reason||'').slice(0,500),status:'pending',requestedAt:new Date().toISOString(),decisionReason:null};
+      db.absenceRequests.push(row);db.auditEvents.push({id:uid(),action:'ABSENCE_SUBMITTED',absenceRequestId:row.id,at:row.requestedAt});return row;
+    }),
+    withdrawMyAbsence:id=>change(db=>{
+      const account=db.accounts.find(row=>row.id===db.demoSession.activeAccountId),row=find(db.absenceRequests,id);
+      check(db.demoSession.activeRole==='specialist'&&account?.specialistId===row.specialistId,'Доступ запрещён.','ROLE_FORBIDDEN');
+      check(row.status==='pending','Можно отозвать только ожидающую заявку.','INVALID_STATUS_TRANSITION');
+      row.status='withdrawn';row.updatedAt=new Date().toISOString();return row;
+    }),
+    async getAbsenceRequests({status=null}={}){const db=read();check(db.demoSession.activeRole==='admin','Доступ запрещён.','ROLE_FORBIDDEN');return db.absenceRequests.filter(row=>!status||row.status===status).sort((a,b)=>(a.status==='pending'?-1:1)-(b.status==='pending'?-1:1)||a.requestedAt.localeCompare(b.requestedAt))},
+    async previewAbsenceApproval(id){const db=read(),request=find(db.absenceRequests,id);check(db.demoSession.activeRole==='admin','Доступ запрещён.','ROLE_FORBIDDEN');const conflicts=db.bookings.filter(booking=>booking.specialistId===request.specialistId&&['pending_confirmation','confirmed'].includes(booking.status)&&booking.date>=request.startDate&&booking.date<=request.endDate&& (request.scope!=='partial_day'||(minutes(booking.time)<minutes(request.endTime)&&minutes(request.startTime)<minutes(booking.time)+booking.durationMinutes)));return {revision:db.revision,requestId:id,conflicts:conflicts.map(booking=>({bookingId:booking.id,date:booking.date,time:booking.time})),requiresConfirmation:conflicts.length>0}},
+    approveAbsence:(id,{expectedRevision,acknowledgedBookingIds=[]}={})=>change(db=>{
+      check(db.demoSession.activeRole==='admin','Доступ запрещён.','ROLE_FORBIDDEN');if(expectedRevision!==undefined)check(expectedRevision===db.revision,'Данные изменились. Повторите проверку.','STALE_REVISION');
+      const request=find(db.absenceRequests,id);check(request.status==='pending','Заявка уже обработана.','INVALID_STATUS_TRANSITION');
+      const conflicts=db.bookings.filter(booking=>booking.specialistId===request.specialistId&&['pending_confirmation','confirmed'].includes(booking.status)&&booking.date>=request.startDate&&booking.date<=request.endDate&&(request.scope!=='partial_day'||(minutes(booking.time)<minutes(request.endTime)&&minutes(request.startTime)<minutes(booking.time)+booking.durationMinutes)));
+      check(!conflicts.length||conflicts.every(booking=>acknowledgedBookingIds.includes(booking.id)),'Подтвердите конфликты с существующими записями.','ABSENCE_CONFLICT');
+      request.status='approved';request.updatedAt=new Date().toISOString();for(const booking of conflicts)booking.requiresReassignment=true;
+      db.auditEvents.push({id:uid(),action:'ABSENCE_APPROVED',absenceRequestId:id,at:request.updatedAt});return request;
+    }),
+    rejectAbsence:(id,{reason='',expectedRevision}={})=>change(db=>{
+      check(db.demoSession.activeRole==='admin','Доступ запрещён.','ROLE_FORBIDDEN');if(expectedRevision!==undefined)check(expectedRevision===db.revision,'Данные изменились.','STALE_REVISION');
+      const request=find(db.absenceRequests,id);check(request.status==='pending','Заявка уже обработана.','INVALID_STATUS_TRANSITION');check(str(String(reason).trim(),500),'Укажите причину отказа.');
+      request.status='rejected';request.decisionReason=String(reason).trim();request.updatedAt=new Date().toISOString();db.auditEvents.push({id:uid(),action:'ABSENCE_REJECTED',absenceRequestId:id,at:request.updatedAt});return request;
+    }),
     async getSpecialists({includeArchived=true}={}){return read().specialists.filter(row=>includeArchived||row.state==='active')},
     createSpecialist:data=>change(db=>{
       const fullName=String(data.fullName||'').trim();check(str(fullName,120),'Укажите имя специалиста.');
