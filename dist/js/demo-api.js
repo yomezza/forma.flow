@@ -99,13 +99,14 @@ const DemoAPI = (() => {
     if(db.version===2){db.clients??=[];db.version=3}
     if(db.version===3){
       db.revision=0;
-      db.specialists=[];
-      db.rooms=[];
-      db.specialistServices=[];
-      db.specialistSchedules=[];
+      const services=db.services.filter(service=>service.isActive);
+      db.specialists=[{id:'sp-001',fullName:'Специалист FORMA TELA',state:'active',accountId:'acct-owner',createdAt:new Date().toISOString(),archivedAt:null}];
+      db.rooms=[{id:'room-001',name:'Кабинет № 1',isActive:true,sortOrder:0}];
+      db.specialistServices=services.map(service=>({specialistId:'sp-001',serviceId:service.id}));
+      db.specialistSchedules=[{specialistId:'sp-001',revision:0,week:Object.fromEntries([0,1,2,3,4,5,6].map(day=>[day,[{start:db.settings.start,end:db.settings.end}]])),overrides:{}}];
       db.absenceRequests=[];
-      db.accounts=[];
-      db.demoSession={activeAccountId:null,activeRole:null};
+      db.accounts=[{id:'acct-owner',login:'owner',displayName:'Владелец',roles:['admin','specialist'],specialistId:'sp-001',state:'active',mustCompleteFirstDemoLogin:false}];
+      db.demoSession={activeAccountId:'acct-owner',activeRole:'admin'};
       db.assignmentEvents=[];
       db.auditEvents=[];
       db.capacityExceptions=[];
