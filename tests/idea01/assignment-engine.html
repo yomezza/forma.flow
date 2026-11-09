@@ -10,7 +10,7 @@
     const service=(id)=>({id,durationMinutes:60});
     function fixture({rooms=['R1'],specialists=['S1'],skills,bookings=[]}){
       return {
-        settings:{breakMinutes:0},
+        settings:{breakMinutes:0,workDays:[0,1,2,3,4,5,6],start:'09:00',end:'18:00',step:30,blockedDates:[],vacations:[]},schedule:{activeMode:'simple',published:{}},
         rooms:rooms.map((id,index)=>({id,isActive:true,sortOrder:index})),
         specialists:specialists.map(id=>({id,state:'active'})),
         specialistServices:skills.flatMap(([id,serviceIds])=>serviceIds.map(serviceId=>({specialistId:id,serviceId}))),
@@ -19,6 +19,15 @@
       };
     }
     const cases=[
+      ['advanced mode ignores drafts and obeys published days',()=>{
+        const db=fixture({rooms:['R1'],specialists:['S1'],skills:[['S1',['A']]]});
+        db.schedule.activeMode='advanced';
+        db.schedule.drafts={'2026-11-09':{kind:'working',intervals:[{start:'09:00',end:'18:00'}]}};
+        const candidate={id:'B1',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'pending_confirmation'};
+        if(FormaAssignmentEngine.solveAssignments(db,{date:candidate.date,candidate}).status!=='UNSAT')throw Error('draft was treated as published');
+        db.schedule.published={'2026-11-09':{kind:'working',intervals:[{start:'09:00',end:'18:00'}]}};
+        if(FormaAssignmentEngine.solveAssignments(db,{date:candidate.date,candidate}).status!=='SAT')throw Error('published working day rejected');
+      }],
       ['one room rejects overlap',()=>{
         const db=fixture({bookings:[{id:'B1',serviceId:'A',date:'2026-11-09',time:'10:00',durationMinutes:60,status:'pending_confirmation'}]});
         const result=FormaAssignmentEngine.solveAssignments(db,{date:'2026-11-09',candidate:{id:'B2',serviceId:'A',date:'2026-11-09',time:'10:30',durationMinutes:60,status:'pending_confirmation'}});
