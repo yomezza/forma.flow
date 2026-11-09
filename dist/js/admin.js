@@ -1,31 +1,63 @@
 (() => {
   if(!APP_CONFIG.demoMode) return;
-  const dialog=$('admin'),page=$('adminPage'),trigger=$('adminOpen'),roleSwitch=$('adminRoleSwitch');
+  const dialog=$('admin'),page=$('adminPage'),trigger=$('adminOpen'),publicPicker=$('publicWorkspacePicker');
   const sections=['Обзор','Записи','Клиенты','Услуги','Расписание','Содержимое сайта','Оформление','Демо-настройки','Специалисты','Кабинет специалиста'];
   const keys=['overview','bookings','clients','services','schedule','content','appearance','demo','specialists','specialist-workspace'];
   const statuses={pending_confirmation:'Необходимо подтверждение',confirmed:'Подтверждена',completed:'Завершена',cancelled:'Отменена'};
   let current=0,generation=0,restoreTheme,publicScroll=0,switching=false;
   const visitor=$('visitor'),motion=()=>!matchMedia('(prefers-reduced-motion:reduce)').matches&&!document.documentElement.classList.contains('no-motion');
-  async function switchView(admin){
+  async function switchView(admin,section=0){
     if(switching || !APP_CONFIG.demoMode)return;
     switching=true;const from=admin?visitor:dialog,to=admin?dialog:visitor;
     try{
       if(admin){publicScroll=scrollY;focusSection('');hideHint()}else discardPreview();
       if(motion())await from.animate([{opacity:1},{opacity:0}],{duration:140}).finished;
       from.hidden=true;to.hidden=false;
-      if(admin)await show(0);else trigger.focus({preventScroll:true});
+      if(admin)await show(section);else{if(publicPicker)publicPicker.open=false;trigger.focus({preventScroll:true})}
       window.scrollTo({top:admin?0:publicScroll,behavior:'instant'});
       if(motion())await to.animate([{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'none'}],{duration:255,easing:'ease-out'}).finished;
     }finally{switching=false}
   }
-  trigger.hidden=false;trigger.onclick=()=>switchView(true);$('adminClose').onclick=()=>switchView(false);
-  async function updateRoleSwitch(){
-    if(!roleSwitch)return;
-    try{const account=await SiteAPI.getMyDemoAccount(),available=account.roles.includes('admin')&&account.roles.includes('specialist')&&account.specialistId;roleSwitch.hidden=!available;roleSwitch.textContent=account.activeRole==='admin'?'Кабинет специалиста':'Администратор';[...$('adminNav').children].forEach((item,index)=>{item.hidden=account.activeRole==='specialist'&&index!==9})}catch{roleSwitch.hidden=true}
+  async function updateWorkspaceSwitchers(){
+    try{
+      const account=await SiteAPI.getMyDemoAccount(),roles=new Set(account.roles),active=dialog.hidden?'site':account.activeRole;
+      const adminEntry=$('publicAdminEntry'),specialistEntry=$('publicSpecialistEntry');
+      if(adminEntry)adminEntry.hidden=!roles.has('admin');
+      if(specialistEntry)specialistEntry.hidden=!roles.has('specialist')||!account.specialistId;
+      if(trigger){trigger.hidden=!roles.has('admin')&&!roles.has('specialist');trigger.textContent=roles.has('admin')?'Панель администратора':'Кабинет специалиста'}
+      document.querySelectorAll('[data-workspace-target]').forEach(item=>{
+        const target=item.dataset.workspaceTarget;
+        item.hidden=target!=='site'&&(!roles.has(target)||(target==='specialist'&&!account.specialistId));
+        item.setAttribute('aria-current',target===active?'page':'false');
+      });
+      [...$('adminNav').children].forEach((item,index)=>{item.hidden=active==='specialist'&&index!==9});
+    }catch{
+      if(trigger)trigger.hidden=true;
+      const adminEntry=$('publicAdminEntry'),specialistEntry=$('publicSpecialistEntry');
+      if(adminEntry)adminEntry.hidden=specialistEntry.hidden=true;
+    }
   }
-  if(roleSwitch)roleSwitch.onclick=async()=>{try{const account=await SiteAPI.getMyDemoAccount();if(!account.roles.includes('admin')||!account.roles.includes('specialist')||!account.specialistId)return;const next=account.activeRole==='admin'?'specialist':'admin';await SiteAPI.switchDemoRole(next);await updateRoleSwitch();await show(next==='admin'?0:9)}catch(error){message(error.message)}};
+  async function enterWorkspace(target){
+    if(target==='site'){if(!dialog.hidden)await switchView(false);else if(publicPicker)publicPicker.open=false;await updateWorkspaceSwitchers();return}
+    try{
+      const account=await SiteAPI.getMyDemoAccount();
+      if(!account.roles.includes(target)||(target==='specialist'&&!account.specialistId)){message('Это рабочее пространство недоступно для выбранного демо-профиля.');return}
+      if(account.activeRole!==target)await SiteAPI.switchDemoRole(target);
+      const section=target==='admin'?(current===9?0:current):9;
+      if(dialog.hidden)await switchView(true,section);else await show(section);
+      if(publicPicker)publicPicker.open=false;
+      await updateWorkspaceSwitchers();
+    }catch(error){message(error.message)}
+  }
+  trigger.onclick=()=>enterWorkspace('admin');
+  $('adminClose').onclick=()=>enterWorkspace('site');
+  document.querySelectorAll('[data-workspace-target]').forEach(item=>item.addEventListener('click',()=>enterWorkspace(item.dataset.workspaceTarget)));
+  document.querySelectorAll('[data-workspace-entry]').forEach(item=>item.addEventListener('click',()=>enterWorkspace(item.dataset.workspaceEntry)));
   function updateMarks(){
-    [...$('adminNav').children].forEach((b,i)=>b.classList.toggle('unsaved',AdminDraftStore.keys().some(k=>k.split('/')[0]===keys[i]||(i===8&&k.startsWith('specialists/')))));
+    const drafts=AdminDraftStore.keys();
+    [...$('adminNav').children].forEach((b,i)=>b.classList.toggle('unsaved',drafts.some(k=>k.split('/')[0]===keys[i]||(i===8&&k.startsWith('specialists/'))||(i===9&&k.startsWith('specialist/')))));
+    document.querySelector('[data-workspace-target="admin"]')?.classList.toggle('unsaved',drafts.some(k=>!k.startsWith('specialist/')));
+    document.querySelector('[data-workspace-target="specialist"]')?.classList.toggle('unsaved',drafts.some(k=>k.startsWith('specialist/')));
   }
   window.addEventListener('admin-drafts',updateMarks);
   function bindDraft(form,key){
@@ -523,11 +555,15 @@
       const accountSelect=element('select');accountSelect.setAttribute('aria-label','Учебный аккаунт специалиста');
       for(const account of accounts.filter(item=>item.roles.includes('specialist'))){const option=element('option',account.displayName+' · '+account.login);option.value=account.id;accountSelect.append(option)}
       page.append(accountSelect);
-      page.append(button('Перейти в режим специалиста',async()=>{try{await SiteAPI.selectDemoAccount(accountSelect.value);await SiteAPI.switchDemoRole('specialist');await updateRoleSwitch();await renderSpecialistWorkspace()}catch(error){message(error.message)}},'admin-action'));
+      page.append(button('Перейти в режим специалиста',async()=>{try{await SiteAPI.selectDemoAccount(accountSelect.value);await SiteAPI.switchDemoRole('specialist');await updateWorkspaceSwitchers();await renderSpecialistWorkspace()}catch(error){message(error.message)}},'admin-action'));
     }else await renderSpecialistWorkspace();
     const refresh=async()=>renderSpecialistWorkspace();
     async function renderSpecialistWorkspace(){
       page.replaceChildren(element('h3','Мои записи'));
+      page.firstElementChild.id='specialist-bookings';
+      const quickLinks=element('nav',undefined,'workspace-section-nav');quickLinks.setAttribute('aria-label','Разделы кабинета специалиста');
+      for(const [label,id] of [['Мои записи','specialist-bookings'],['Мой график','specialist-schedule'],['Заявки на отсутствие','specialist-absence']])quickLinks.append(button(label,()=>document.getElementById(id)?.scrollIntoView({behavior:motion()?'smooth':'instant',block:'start'}),'admin-action'));
+      page.insertBefore(quickLinks,page.firstElementChild);
       try{
         const demoAccount=await SiteAPI.getMyDemoAccount();
         if(demoAccount.mustCompleteFirstDemoLogin){
@@ -546,14 +582,14 @@
           if(booking.status==='completed')row.append(button('Отменить отметку',async()=>{try{await SiteAPI.undoMyCompletion(booking.id);await refresh()}catch(error){message(error.message)}},'admin-action'));
           page.append(row);
         }
-        page.append(element('h3','История моих переназначений'));
+        const historyTitle=element('h3','История моих переназначений');historyTitle.id='specialist-history';page.append(historyTitle);
         const events=await SiteAPI.getMyReassignmentEvents();
         if(!events.length)page.append(element('p','Переназначений пока нет.'));
         for(const event of events)page.append(card(event.serviceName||'Запись',`${event.date||''} ${event.time||''} · ${event.assigned?'Назначена вам':'Снята с вас'} · ${stamp(event.at)}`));
-        page.append(element('h3','Мой график'));
+        const scheduleTitle=element('h3','Мой график');scheduleTitle.id='specialist-schedule';page.append(scheduleTitle);
         const schedule=await SiteAPI.getMySchedule();
         page.append(element('p',`Рабочих дней в неделе: ${Object.values(schedule.week).filter(intervals=>intervals.length).length}. Утверждённых периодов отсутствия: ${schedule.approvedAbsences.length}.`));
-        page.append(element('h3','Заявка на отсутствие'));
+        const absenceTitle=element('h3','Заявки на отсутствие');absenceTitle.id='specialist-absence';page.append(absenceTitle);
         const form=element('form',undefined,'edit-form');
         inputField(form,'Дата начала','startDate','date','',{required:true});
         inputField(form,'Дата окончания','endDate','date','',{required:true});
@@ -566,8 +602,9 @@
         inputField(form,'Причина','reason','text','',{required:false,maxLength:500});
         const submit=element('button','Отправить заявку','btn');submit.type='submit';form.append(submit);
         form.onsubmit=async event=>{event.preventDefault();try{const partial=form.elements.scope.value==='partial_day';await SiteAPI.submitMyAbsence({kind:form.elements.kind.value,scope:form.elements.scope.value,startDate:form.elements.startDate.value,endDate:form.elements.endDate.value,startTime:partial?form.elements.startTime.value:null,endTime:partial?form.elements.endTime.value:null,reason:form.elements.reason.value});await refresh()}catch(error){message(error.message)}};
+        bindDraft(form,'specialist/absence/new');
         page.append(form);
-        page.append(element('h3','Мои заявки'));
+        const requestsTitle=element('h3','Мои заявки');requestsTitle.id='specialist-requests';page.append(requestsTitle);
         for(const request of await SiteAPI.getMyAbsenceRequests()){
           const row=card(`${request.startDate} — ${request.endDate}`,request.status);
           if(request.status==='pending')row.append(button('Отозвать',async()=>{try{await SiteAPI.withdrawMyAbsence(request.id);await refresh()}catch(error){message(error.message)}},'admin-action'));
@@ -579,7 +616,7 @@
   const views=[overview,bookings,clients,services,schedule,content,appearance,demo,specialists,specialistWorkspace];
   async function show(index){
     const token=++generation;discardPreview();current=index;message('');
-    await updateRoleSwitch();
+    await updateWorkspaceSwitchers();
     $('adminSection').textContent=index===0?'Обзор кабинета':sections[index];
     [...$('adminNav').children].forEach((b,i)=>b.setAttribute('aria-current',i===index?'page':'false'));
     try{
@@ -592,5 +629,22 @@
       if(motion())page.animate([{opacity:.2,transform:'translateY(3px)'},{opacity:1,transform:'none'}],{duration:200});
     }catch(e){message(e.message)}
   }
-  sections.forEach((label,i)=>$('adminNav').append(button(label,()=>show(i))));
+  const navPaths=[
+    'M3 3h7v7H3z M14 3h7v5h-7z M14 11h7v10h-7z M3 13h7v8H3z',
+    'M5 4h14v17H5z M8 2v4 M16 2v4 M5 9h14 M8 13h3 M13 13h3 M8 17h3',
+    'M16 20v-1.5a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4V20 M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M16 4.2a4 4 0 0 1 0 7.6 M18 14.5a4 4 0 0 1 2 3.5V20',
+    'M4 4h16v16H4z M8 8h8 M8 12h8 M8 16h5',
+    'M12 3a9 9 0 1 0 9 9 M12 7v5l3 2 M16 3v5h5',
+    'M5 3h14v18H5z M8 7h8 M8 11h8 M8 15h5',
+    'M12 3a9 9 0 1 0 9 9 9 9 0 0 0-9-9 M12 3v9l6.4 6.4',
+    'M4 6h16 M4 12h16 M4 18h16 M8 4v4 M15 10v4 M11 16v4',
+    'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M4 21a8 8 0 0 1 16 0 M19 5v6 M16 8h6',
+    'M3 4h18v13H3z M8 21h8 M12 17v4'
+  ];
+  sections.forEach((label,i)=>{
+    const item=button(label,()=>show(i));item.classList.add('admin-nav-item');
+    const icon=document.createElementNS('http://www.w3.org/2000/svg','svg');icon.setAttribute('viewBox','0 0 24 24');icon.setAttribute('aria-hidden','true');
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',navPaths[i]);icon.append(path);item.prepend(icon);$('adminNav').append(item);
+  });
+  updateWorkspaceSwitchers();
 })();
