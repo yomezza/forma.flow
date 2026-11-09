@@ -47,3 +47,7 @@ HttpSiteAPI adapter к frontend, режимы расписания и revision p
 7. **Интеграция и тесты.** Проверить все 77 операций OpenAPI, валидировать фронтенд-адаптер и permissions, запускать migration + многопроцессные тесты; документация `docs/backend` — источник backend-решений, а `ideas` — источник согласованных бизнес-правил.
 
 Подробности в [бизнес-правилах](business-rules.md), [движке](scheduling-engine.md), [SQL](database-schema.sql), [транзакциях](database-operations.md), [контрактах Go](go-service-contracts.md), [Go тестах](go-testing.md) и [OpenAPI](openapi.yaml). Первоисточник: [идея 01](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L15-L52).
+
+### Вход сотрудников: дополнительный критерий для фазы 2
+
+До реализации UI личного кабинета обеспечить `POST /auth/sessions` (owner/admin/specialist), `GET/DELETE /auth/sessions/current`, `POST /admin/staff-invitations`, `POST /auth/password/change`; prefix `/api/v1`. Сессия обязана вернуть `accountId,roles,activeRole,mustChangePassword,expiresAt,csrfToken` — не старые обязательные `adminId` и `role`. Временный пароль возвращается однократно, защищён `no-store`, сохраняется лишь как Argon2id-хеш; до смены пароля только session/change/logout. Проверить роль администратора, собственный specialist UUID и защиту от создания owner через приглашение. Контракт: [OpenAPI](openapi.yaml), [authorization.md](authorization.md).

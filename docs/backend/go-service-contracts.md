@@ -85,3 +85,20 @@ func (s *Service) Reject(ctx context.Context, cmd Command) error { panic("signat
 **Ошибки:** `VALIDATION` 422, `CLIENT_LINK_REQUIRED` 409, `SPECIALIST_INELIGIBLE` 409, `ROOM_UNAVAILABLE` 409, `GLOBAL_CAPACITY_CONFLICT` 409, `CAPACITY_UNRESOLVED` 409, `CAPACITY_CHECK_LIMIT` 503, `VERSION_CONFLICT` 409, `CONFLICT_ACK_REQUIRED` 409, `NOT_ENDED_YET` 409, `FORBIDDEN` 403, `SLOT_UNAVAILABLE` 409. SQLSTATE 23P01 → direct assignment conflict, not public personal disclosure.
 
 Интерфейсы определять в пакетах-потребителях (включая Clock), не создавать repository на каждый DTO. Use case atomicity — `storage/postgres` с транзакционным UnitOfWork, solver — чистый unit-testable пакет. [Транзакции](database-operations.md), [RBAC](authorization.md).
+
+## Staff authentication services (idea 01)
+
+~~~go
+package auth
+import "context"
+type StaffInvitation struct { Email string; Roles []string; SpecialistID *string; ActorAccountID string }
+type InvitationReceipt struct { AccountID, Email, TemporaryPassword string; Roles []string }
+type ChangePassword struct { AccountID, CurrentPassword, NewPassword string }
+func (s *Service) InviteStaff(ctx context.Context, in StaffInvitation) (InvitationReceipt,error) { panic("signature only") }
+func (s *Service) CreateStaffSession(ctx context.Context, email, password string) (Session,error) { panic("signature only") }
+func (s *Service) ChangeStaffPassword(ctx context.Context, in ChangePassword) (Session,error) { panic("signature only") }
+func (s *Service) GetCurrentSession(ctx context.Context, accountID string) (Session,error) { panic("signature only") }
+func (s *Service) Logout(ctx context.Context, sessionID string) error { panic("signature only") }
+~~~
+
+`Session` is a DTO mapped to `accountId,roles,activeRole,mustChangePassword,expiresAt,csrfToken` in [OpenAPI](openapi.yaml). `InviteStaff` is an admin-only use case; generate a cryptographically secure temporary secret, hash Argon2id, save account/roles/profile relation atomically, return the one-time secret exactly once with `no-store`. Password change requires current password, revokes other sessions, rotates the current session and releases the `must_change_password` gate. Never store plaintext in audit details.

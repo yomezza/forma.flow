@@ -130,3 +130,14 @@ The old findClientByPhone(phone) returns only one client/null in the JavaScript 
 | POST /specialist/me/bookings/{id}/complete,/undo-completion | Specialist.Completion → booking.CompleteOwn/UndoOwn | bookings row lock, booking_completion_events, booking_events, audit_log |
 
 `completeBooking` из старого frontend — источник для анализа **устаревшего** поведения, не административный production endpoint. События завершения не являются событиями переназначения. `pending_confirmation` занимает вместимость даже при обоих NULL assigned IDs.
+
+## Дополнение idea 01: staff authentication endpoints (не 57 DemoAPI методов)
+
+| HTTP в `/api/v1` | Go handler → service | Данные и правило |
+|---|---|---|
+| `POST /auth/sessions` | Auth.CreateStaffSession | `staff_accounts`, `account_roles`, `staff_sessions` → Session для owner/admin/specialist |
+| `GET/DELETE /auth/sessions/current` | Auth.Current/Logout | Session и отзыв `staff_sessions`; `must_change_password` gate |
+| `POST /auth/password/change` | Auth.ChangeStaffPassword | Argon2id + must_change_password=false + session rotation |
+| `POST /admin/staff-invitations` | Admin.InviteStaff | Создание `staff_accounts`, `account_roles`, связь `specialists.account_id`, одноразовый временный пароль |
+
+Старый `/admin/sessions` остаётся историческим маршрутом прежней архитектуры и не входит в актуальный [OpenAPI](openapi.yaml). В frontend DemoAPI настоящих учётных данных нет — его учебные роли не должны определять серверные права.

@@ -1,6 +1,6 @@
 # Wire contracts, errors and HTTP policy
 
-Canonical machine-readable file: openapi.yaml. It contains 77 operations across 62 paths, public and admin, reusable schemas and concrete booking examples. HTTP handler method is operationId; mapping to Go service and tables is documented in api-mapping.md.
+Canonical machine-readable file: openapi.yaml. It contains 79 operations across 64 paths, public and admin, reusable schemas and concrete booking examples. HTTP handler method is operationId; mapping to Go service and tables is documented in api-mapping.md.
 
 ## Protocol
 
@@ -64,3 +64,7 @@ The initial contract was derived from [frontend DemoAPI documentation](https://g
 Личный контур `/specialist/me/*`: только свои назначения и заявки на отсутствие. Отдельные `SpecialistBooking` DTO **без телефона и клиентского ID**. Подтверждение осталось admin-действием; завершение/undo перешли к назначенному специалисту. Из OpenAPI удалён `POST /admin/bookings/{id}/complete`; вместо него `POST /specialist/me/bookings/{id}/complete` и `/undo-completion`. `completed → confirmed` возможен тем же человеком в любой момент с аудитом. `staff_accounts` поддерживает совмещённые роли и обязательную смену пароля на первом входе.
 
 [Источник правил идеи](https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L15-L52), [полный OpenAPI](openapi.yaml).
+
+## Staff auth finalization (idea 01)
+
+`POST /api/v1/auth/sessions` is the **canonical login for all staff** (owner/admin/specialist); no `/api/v1/admin/sessions` in the final API. `GET /api/v1/auth/sessions/current` returns the staff Session with `accountId`, `roles`, `activeRole`, `mustChangePassword`, `expiresAt` and CSRF token; `DELETE` logs out. `POST /api/v1/admin/staff-invitations` accepts `{email, roles, specialistId}` and returns a one-time `temporaryPassword` only in its protected 201 response. `POST /api/v1/auth/password/change` accepts `{currentPassword,newPassword}`, rotates the session, clears first-login gate and returns the new Session. All writes use CSRF + Origin check, and passwords are never logged. Until first password change, only current-session, logout and password change are permitted. See [authorization](authorization.md) and [OpenAPI](openapi.yaml).

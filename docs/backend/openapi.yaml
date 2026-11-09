@@ -1,9 +1,9 @@
-# OpenAPI 3.1 contract for FORMA TELA Go backend; architecture, not deployed API
+# FORMA TELA OpenAPI 3.1 — backend architecture, not deployed
 "openapi": "3.1.0"
 "info":
   "title": "FORMA TELA Go Backend API"
   "version": "0.2.0"
-  "description": "Design-stage contract. Prefix /api/v1. Requires auth for all admin paths; do not expose demo resets/import. One phone can belong to multiple clients; admin client association is explicit. Idea 01: studio resources with multiple specialists and rooms; joint assignment capacity is transactional."
+  "description": "Design-stage contract. Prefix /api/v1. Requires auth for all admin paths; do not expose demo resets/import. One phone can belong to multiple clients; admin client association is explicit. Idea 01: studio resources with multiple specialists and rooms; joint assignment capacity is transactional. Canonical staff login is /api/v1/auth/sessions; the former /api/v1/admin/sessions is not supported by the target backend."
 "externalDocs":
   "description": "Existing JavaScript DemoAPI in the frontend branch (not a deployed REST backend)"
   "url": "https://github.com/yomezza/forma.flow/blob/frontend/docs/DEMO_API.md#L1-L108"
@@ -14,14 +14,14 @@
   -
     "name": "Public"
   -
-    "name": "Authentication"
-  -
     "name": "Admin"
   -
     "name": "Schedule"
   -
     "name": "Specialist"
     "description": "Authenticated actions for assigned specialist only"
+  -
+    "name": "Authentication"
 "paths":
   "/api/v1/services":
     "get":
@@ -420,193 +420,6 @@
             "application/json":
               "schema":
                 "$ref": "#/components/schemas/ErrorEnvelope"
-  "/api/v1/admin/sessions":
-    "post":
-      "tags":
-        - "Authentication"
-      "operationId": "loginAdmin"
-      "summary": "Create a staff session, enforce first password change; roles can include specialist"
-      "requestBody":
-        "required": true
-        "content":
-          "application/json":
-            "schema":
-              "$ref": "#/components/schemas/LoginInput"
-      "responses":
-        "201":
-          "description": "Successful response"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/Session"
-        "400":
-          "description": "Error 400"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "401":
-          "description": "Invalid credentials"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "404":
-          "description": "Error 404"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "409":
-          "description": "Error 409"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "422":
-          "description": "Error 422"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "429":
-          "description": "Error 429"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "500":
-          "description": "Error 500"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-  "/api/v1/admin/sessions/current":
-    "get":
-      "tags":
-        - "Authentication"
-      "operationId": "getCurrentSession"
-      "summary": "Current administrator"
-      "security":
-        -
-          "adminCookie": []
-      "responses":
-        "200":
-          "description": "Successful response"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/Session"
-        "400":
-          "description": "Error 400"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "401":
-          "description": "Error 401"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "403":
-          "description": "Error 403"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "404":
-          "description": "Error 404"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "409":
-          "description": "Error 409"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "422":
-          "description": "Error 422"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "429":
-          "description": "Error 429"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "500":
-          "description": "Error 500"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-    "delete":
-      "tags":
-        - "Authentication"
-      "operationId": "logoutAdmin"
-      "summary": "Revoke session"
-      "security":
-        -
-          "adminCookie": []
-      "parameters":
-        -
-          "$ref": "#/components/parameters/Csrf"
-      "responses":
-        "204":
-          "description": "Completed; no content"
-        "400":
-          "description": "Error 400"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "401":
-          "description": "Error 401"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "403":
-          "description": "Error 403"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "404":
-          "description": "Error 404"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "409":
-          "description": "Error 409"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "422":
-          "description": "Error 422"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "429":
-          "description": "Error 429"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
-        "500":
-          "description": "Error 500"
-          "content":
-            "application/json":
-              "schema":
-                "$ref": "#/components/schemas/ErrorEnvelope"
   "/api/v1/admin/dashboard":
     "get":
       "tags":
@@ -615,7 +428,7 @@
       "summary": "Admin counters and upcoming bookings"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "responses":
         "200":
           "description": "Successful response"
@@ -679,7 +492,7 @@
       "summary": "Full service catalog"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Cursor"
@@ -747,7 +560,7 @@
       "summary": "Create service"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Csrf"
@@ -820,7 +633,7 @@
       "summary": "Modify service"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/ServiceId"
@@ -894,7 +707,7 @@
       "summary": "Archive service; historical bookings retained"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/ServiceId"
@@ -959,7 +772,7 @@
       "summary": "Filtered paginated bookings"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/DateFilter"
@@ -1032,7 +845,7 @@
       "summary": "Confirm pending booking after explicit client association; staff assignment optional"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/BookingId"
@@ -1101,7 +914,7 @@
       "summary": "cancel booking with lifecycle validation"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/BookingId"
@@ -1176,7 +989,7 @@
       "summary": "Restore pending booking only after serialized joint capacity check"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/BookingId"
@@ -1245,7 +1058,7 @@
       "summary": "IDs of active bookings outside published schedule"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "responses":
         "200":
           "description": "Successful response"
@@ -1309,7 +1122,7 @@
       "summary": "Clients, paginated"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Cursor"
@@ -1377,7 +1190,7 @@
       "summary": "Create client"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Csrf"
@@ -1453,7 +1266,7 @@
       "summary": "List all possible client profiles for a shared normalized phone; never automatically assign"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Phone"
@@ -1521,7 +1334,7 @@
       "summary": "Client detail"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/ClientId"
@@ -1587,7 +1400,7 @@
       "summary": "Update client without changing old booking snapshots"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/ClientId"
@@ -1662,7 +1475,7 @@
       "summary": "Client history, including cancelled"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/ClientId"
@@ -1733,7 +1546,7 @@
       "summary": "Simple-mode vacations and date lookup"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Contains"
@@ -1803,7 +1616,7 @@
       "summary": "Vacation with conflict acknowledgement"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Csrf"
@@ -1876,7 +1689,7 @@
       "summary": "Change vacation"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/VacationId"
@@ -1950,7 +1763,7 @@
       "summary": "Delete vacation and bump revision"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/VacationId"
@@ -2017,7 +1830,7 @@
       "summary": "Administrative visual settings"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "responses":
         "200":
           "description": "Successful response"
@@ -2080,7 +1893,7 @@
       "summary": "Update appearance and calendar metadata"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Csrf"
@@ -2153,7 +1966,7 @@
       "summary": "Simple weekly settings"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "responses":
         "200":
           "description": "Successful response"
@@ -2216,7 +2029,7 @@
       "summary": "Update simple weekly settings"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Csrf"
@@ -2289,7 +2102,7 @@
       "summary": "Current active schedule mode and revision"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "responses":
         "200":
           "description": "Successful response"
@@ -2352,7 +2165,7 @@
       "summary": "Switch schedule mode, optimistic revision check"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Csrf"
@@ -2425,7 +2238,7 @@
       "summary": "Estimate effect of mode switch"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Csrf"
@@ -2498,7 +2311,7 @@
       "summary": "Published or draft day rules for range"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/From"
@@ -2569,7 +2382,7 @@
       "summary": "Active/draft/published day details"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/DatePath"
@@ -2636,7 +2449,7 @@
       "summary": "Save or mark day as unplanned in draft"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/DatePath"
@@ -2711,7 +2524,7 @@
       "summary": "Save range or weekday template drafts"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Csrf"
@@ -2784,7 +2597,7 @@
       "summary": "Copy simple weekly rules to advanced draft"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Csrf"
@@ -2857,7 +2670,7 @@
       "summary": "Preview conflicts and affected dates"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Csrf"
@@ -2933,7 +2746,7 @@
       "summary": "Atomically publish selected draft range"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Csrf"
@@ -3006,7 +2819,7 @@
       "summary": "Durable history and versions"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Cursor"
@@ -3075,7 +2888,7 @@
       "summary": "Preview restoring historical before_state"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/HistoryId"
@@ -3144,7 +2957,7 @@
       "summary": "Restore to draft, never publish automatically"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/HistoryId"
@@ -3219,7 +3032,7 @@
       "summary": "Edit public copy"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Csrf"
@@ -3292,7 +3105,7 @@
       "summary": "Owner-only export; audited, no-store"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Csrf"
@@ -3361,7 +3174,7 @@
       "description": "No automatic phone matching. A public pending booking starts with clientId null. Admin selects a profile or creates one. Name/phone snapshots on the booking never change. Confirmation requires a linked client. No separate contact-person entity."
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/BookingId"
@@ -3448,7 +3261,7 @@
       "summary": "List specialists, optionally archived"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/IncludeArchived"
@@ -3525,7 +3338,7 @@
       "summary": "Create specialist and assign eligible service IDs"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Csrf"
@@ -3605,7 +3418,7 @@
       "summary": "Get specialist"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/SpecialistId"
@@ -3678,7 +3491,7 @@
       "summary": "Modify specialist and competencies; capacity lock"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/SpecialistId"
@@ -3760,7 +3573,7 @@
       "summary": "Archive without losing assignments; mark warnings"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/SpecialistId"
@@ -3836,7 +3649,7 @@
       "summary": "Personal weekly schedule and overrides"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/SpecialistId"
@@ -3909,7 +3722,7 @@
       "summary": "Edit personal schedule; atomic capacity revision"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/SpecialistId"
@@ -3991,7 +3804,7 @@
       "summary": "List rooms"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/IncludeInactive"
@@ -4068,7 +3881,7 @@
       "summary": "Create room"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Csrf"
@@ -4148,7 +3961,7 @@
       "summary": "Update room, mark affected existing appointments"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/RoomId"
@@ -4230,7 +4043,7 @@
       "summary": "Compatible specialists and rooms, with global matcher"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/BookingId"
@@ -4304,7 +4117,7 @@
       "summary": "Preview direct/indirect assignment conflicts"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/BookingId"
@@ -4386,7 +4199,7 @@
       "summary": "Commit staff and room together, validate global capacity"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/BookingId"
@@ -4468,7 +4281,7 @@
       "summary": "Booking staff/room assignment audit"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/BookingId"
@@ -4542,7 +4355,7 @@
       "summary": "Admin attention list for staff/room/absence warnings"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters": []
       "responses":
         "200":
@@ -4614,7 +4427,7 @@
       "summary": "List all staff leave requests"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Cursor"
@@ -4690,7 +4503,7 @@
       "summary": "Preview impacts of approving leave"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/AbsenceId"
@@ -4766,7 +4579,7 @@
       "summary": "Approve full absence including explicit warning acknowledgement"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/AbsenceId"
@@ -4848,7 +4661,7 @@
       "summary": "Reject absence with required reason"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/AbsenceId"
@@ -4930,7 +4743,7 @@
       "summary": "Only current specialist's appointments, without phone"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Cursor"
@@ -5006,7 +4819,7 @@
       "summary": "Current specialist's schedule and approved absence"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters": []
       "responses":
         "200":
@@ -5078,7 +4891,7 @@
       "summary": "Only personal leave requests"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters": []
       "responses":
         "200":
@@ -5149,7 +4962,7 @@
       "summary": "Submit absence, no immediate effect on availability"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/Csrf"
@@ -5229,7 +5042,7 @@
       "summary": "Withdraw only own pending leave"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/AbsenceId"
@@ -5305,7 +5118,7 @@
       "summary": "Own past assignment events, no other bookings/phones"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters": []
       "responses":
         "200":
@@ -5377,7 +5190,7 @@
       "summary": "Complete own confirmed appointment after its planned end"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/BookingId"
@@ -5453,7 +5266,7 @@
       "summary": "Undo own completion at any later time; audited"
       "security":
         -
-          "adminCookie": []
+          "staffCookie": []
       "parameters":
         -
           "$ref": "#/components/parameters/BookingId"
@@ -5527,12 +5340,364 @@
             "schema":
               "$ref": "#/components/schemas/StatusNote"
       "x-required-role": "specialist"
+  "/api/v1/auth/sessions":
+    "post":
+      "tags":
+        - "Authentication"
+      "operationId": "staffCreateSession"
+      "summary": "Login for staff accounts with owner/admin/specialist roles"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/LoginInput"
+      "responses":
+        "201":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Session"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Invalid credentials"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "description": "Login accepts staff_accounts.email + password. Accounts with mustChangePassword=true receive a restricted session until they change the temporary password."
+  "/api/v1/auth/sessions/current":
+    "get":
+      "tags":
+        - "Authentication"
+      "operationId": "staffGetCurrentSession"
+      "summary": "Get current authenticated staff session and available roles"
+      "security":
+        -
+          "staffCookie": []
+      "responses":
+        "200":
+          "description": "Successful response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Session"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "description": "Always accessible with a valid staff session, even while mustChangePassword=true."
+    "delete":
+      "tags":
+        - "Authentication"
+      "operationId": "staffDeleteCurrentSession"
+      "summary": "Revoke session"
+      "security":
+        -
+          "staffCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "responses":
+        "204":
+          "description": "Completed; no content"
+        "400":
+          "description": "Error 400"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "Error 401"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Error 403"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "Error 404"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "Error 409"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "Error 422"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "Error 429"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "Error 500"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "description": "Log out the currently authenticated staff account, also permitted during mandatory first-login password change."
+  "/api/v1/admin/staff-invitations":
+    "post":
+      "tags":
+        - "Authentication"
+      "operationId": "adminInviteStaff"
+      "summary": "Invite staff member with one-time temporary password and assigned roles"
+      "description": "Admin-only. Existing specialist profile linked when role includes specialist. Temporary password returned once under HTTPS, Cache-Control:no-store, hashed with Argon2id at rest. No passwords or secrets in audit/logs. Owner role cannot be granted here. Do not send email or automatic messages. Only server-side RBAC protects the endpoint."
+      "security":
+        -
+          "staffCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/StaffInvitationInput"
+      "responses":
+        "201":
+          "description": "Created staff account. One-time password for admin to transfer securely; never cache."
+          "headers":
+            "Cache-Control":
+              "description": "Must be no-store"
+              "schema":
+                "type": "string"
+                "const": "no-store"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/StaffInvitationReceipt"
+        "400":
+          "description": "HTTP 400 error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "HTTP 401 error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "HTTP 403 error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "HTTP 404 error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "HTTP 409 error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "HTTP 422 error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "HTTP 429 error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "HTTP 500 error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "x-required-role": "admin"
+      "externalDocs":
+        "description": "Approved staff accounts and roles"
+        "url": "https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L36-L43"
+  "/api/v1/auth/password/change":
+    "post":
+      "tags":
+        - "Authentication"
+      "operationId": "staffChangePassword"
+      "summary": "Change staff password; mandatory on first login"
+      "description": "Requires an authenticated staff session; permitted when mustChangePassword=true. Verify current/temporary password, update Argon2id password hash, set must_change_password=false; rotate current session and revoke other sessions in one transaction. No passwords in logs or database plaintext. Return updated Session."
+      "security":
+        -
+          "staffCookie": []
+      "parameters":
+        -
+          "$ref": "#/components/parameters/Csrf"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/ChangePasswordInput"
+      "responses":
+        "200":
+          "description": "Password changed and session rotated"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Session"
+        "400":
+          "description": "HTTP 400 error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "401":
+          "description": "HTTP 401 error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "HTTP 403 error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "404":
+          "description": "HTTP 404 error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "409":
+          "description": "HTTP 409 error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "422":
+          "description": "HTTP 422 error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "429":
+          "description": "HTTP 429 error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "500":
+          "description": "HTTP 500 error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+      "externalDocs":
+        "description": "Approved first-login password change"
+        "url": "https://github.com/yomezza/forma.flow/blob/ideas/01-specialists/idea.md#L36-L43"
 "components":
   "securitySchemes":
-    "adminCookie":
+    "staffCookie":
       "type": "apiKey"
       "in": "cookie"
       "name": "ft_session"
+      "description": "Shared secure staff session cookie for admin and specialist routes"
   "parameters":
     "ServiceId":
       "name": "id"
@@ -6588,21 +6753,9 @@
     "Session":
       "type": "object"
       "properties":
-        "adminId":
+        "accountId":
           "type": "string"
           "format": "uuid"
-          "description": "Legacy field alias for authenticated staff account ID; migrate to accountId"
-        "role":
-          "type": "string"
-          "enum":
-            - "owner"
-            - "admin"
-            - "specialist"
-        "expiresAt":
-          "type": "string"
-          "format": "date-time"
-        "csrfToken":
-          "type": "string"
         "roles":
           "type": "array"
           "items":
@@ -6611,22 +6764,30 @@
               - "owner"
               - "admin"
               - "specialist"
+          "minItems": 1
+          "uniqueItems": true
         "activeRole":
           "type": "string"
           "enum":
             - "owner"
             - "admin"
             - "specialist"
-        "accountId":
+          "description": "Selected workspace only; the server must authorize each operation from account_roles."
+        "mustChangePassword":
+          "type": "boolean"
+          "description": "When true, only password change, current session and logout are allowed."
+        "expiresAt":
           "type": "string"
-          "format": "uuid"
+          "format": "date-time"
+        "csrfToken":
+          "type": "string"
       "required":
-        - "adminId"
-        - "role"
+        - "accountId"
+        - "roles"
+        - "activeRole"
+        - "mustChangePassword"
         - "expiresAt"
         - "csrfToken"
-        - "roles"
-        - "accountId"
       "additionalProperties": false
     "StatusNote":
       "type": "object"
@@ -7282,4 +7443,82 @@
           "type": "boolean"
       "required":
         - "success"
+      "additionalProperties": false
+    "StaffInvitationInput":
+      "type": "object"
+      "properties":
+        "email":
+          "type": "string"
+          "format": "email"
+        "roles":
+          "type": "array"
+          "items":
+            "type": "string"
+            "enum":
+              - "admin"
+              - "specialist"
+          "minItems": 1
+          "uniqueItems": true
+        "specialistId":
+          "type":
+            - "string"
+            - "null"
+          "format": "uuid"
+          "description": "Existing specialist profile to associate; required if specialist role is granted."
+      "required":
+        - "email"
+        - "roles"
+        - "specialistId"
+      "additionalProperties": false
+    "StaffInvitationReceipt":
+      "type": "object"
+      "properties":
+        "accountId":
+          "type": "string"
+          "format": "uuid"
+        "email":
+          "type": "string"
+          "format": "email"
+        "roles":
+          "type": "array"
+          "items":
+            "type": "string"
+            "enum":
+              - "admin"
+              - "specialist"
+          "minItems": 1
+          "uniqueItems": true
+        "specialistId":
+          "type":
+            - "string"
+            - "null"
+          "format": "uuid"
+        "mustChangePassword":
+          "type": "boolean"
+          "const": true
+        "temporaryPassword":
+          "type": "string"
+          "writeOnly": true
+          "description": "Shown once on the protected 201 response only; never persisted in logs, audit or database in plaintext."
+      "required":
+        - "accountId"
+        - "email"
+        - "roles"
+        - "specialistId"
+        - "mustChangePassword"
+        - "temporaryPassword"
+      "additionalProperties": false
+    "ChangePasswordInput":
+      "type": "object"
+      "properties":
+        "currentPassword":
+          "type": "string"
+          "minLength": 1
+        "newPassword":
+          "type": "string"
+          "minLength": 12
+          "maxLength": 1024
+      "required":
+        - "currentPassword"
+        - "newPassword"
       "additionalProperties": false
