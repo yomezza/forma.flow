@@ -22,7 +22,7 @@
     return [{start:settings.start,end:settings.end,step:settings.step}];
   }
 
-  function solveAssignments(db, { date, candidate = null, anchorBookingId = null, fixedOverrides = {}, excludedIds = [], nodeLimit = 50000 } = {}) {
+  function solveAssignments(db, { date, candidate = null, anchorBookingId = null, fixedOverrides = {}, excludedIds = [], ignoreCapacityExceptions = false, nodeLimit = 50000 } = {}) {
     let bookings = db.bookings.filter(row =>
       row.date === date && ['pending_confirmation', 'confirmed'].includes(row.status) &&
       !excludedIds.includes(row.id)
@@ -46,6 +46,10 @@
         }
       }
       bookings=bookings.filter(row=>related.has(row.id));
+      if(candidate&&!ignoreCapacityExceptions){
+        const unresolved=(db.capacityExceptions||[]).filter(exception=>exception.resolvedAt==null&&exception.bookingIds?.some(id=>related.has(id)));
+        if(unresolved.length)return {feasible:false,uncertain:false,status:'UNRESOLVED_CAPACITY_CONFLICT',allocations:{},reason:'UNRESOLVED_CAPACITY_CONFLICT',examinedNodes:0,affectedBookingIds:[...new Set(unresolved.flatMap(exception=>exception.bookingIds))]};
+      }
     }
     const rooms = db.rooms.filter(room => room.isActive).sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id));
     const specialists = db.specialists.filter(row => row.state === 'active').sort((a, b) => a.id.localeCompare(b.id));
