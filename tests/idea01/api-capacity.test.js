@@ -69,6 +69,14 @@ async function run() {
   assert.equal((await migrationApi.exportData()).revision, stableBeforeInvalidImport.revision);
   console.log('PASS v3 migration, repeated import, and duplicate phone preservation');
 
+  const attentionApi = createApi();
+  const attentionBooking = await attentionApi.createBookingRequest({ serviceId: 'classic', date: '2026-12-04', time: '09:00', fullName: 'Клиент Внимание', phone: '+79995555555' });
+  await attentionApi.setSpecialistServices('sp-001', []);
+  const attention = await attentionApi.getAttentionItems();
+  assert.ok(attention.items.some(item => item.bookingId === attentionBooking.id && item.code === 'UNASSIGNED_SPECIALIST'));
+  assert.ok(attention.items.some(item => item.bookingId === attentionBooking.id && item.code === 'NO_AVAILABLE_SPECIALIST' && item.severity && item.hint));
+  console.log('PASS attention items include missing specialist capacity');
+
   const api = createApi();
   const ownAccount = await api.getMyDemoAccount();
   assert.deepEqual([...ownAccount.roles], ['admin', 'specialist']);
