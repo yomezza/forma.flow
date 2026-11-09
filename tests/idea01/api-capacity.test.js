@@ -122,6 +122,27 @@ async function run() {
   assert.ok(attention.items.some(item => item.bookingId === attentionBooking.id && item.code === 'NO_AVAILABLE_SPECIALIST' && item.severity && item.hint));
   console.log('PASS attention items include missing specialist capacity');
 
+  const reasonApi = createApi();
+  const extraRoom = await reasonApi.createRoom({ name: 'Кабинет 2', sortOrder: 1 });
+  const extraSpecialist = await reasonApi.createSpecialist({
+    fullName: 'Специалист два',
+    serviceIds: ['classic'],
+    week: Object.fromEntries([0, 1, 2, 3, 4, 5, 6].map(day => [day, [{ start: '09:00', end: '21:00' }]]))
+  });
+  const reasonDate = '2026-12-15';
+  const fixedBooking = await reasonApi.createBookingRequest({ serviceId: 'classic', date: reasonDate, time: '09:00', fullName: 'Клиент Закреплённый', phone: '+79990000011' });
+  const movableBooking = await reasonApi.createBookingRequest({ serviceId: 'classic', date: reasonDate, time: '09:00', fullName: 'Клиент Второй', phone: '+79990000012' });
+  let reasonPreview = await reasonApi.previewBookingAssignment(fixedBooking.id, { specialistId: 'sp-001', roomId: 'room-001' });
+  await reasonApi.assignBooking(fixedBooking.id, { specialistId: 'sp-001', roomId: 'room-001', expectedRevision: reasonPreview.revision });
+  reasonPreview = await reasonApi.previewBookingAssignment(movableBooking.id, { specialistId: 'sp-001', roomId: extraRoom.id });
+  assert.equal(reasonPreview.reason, 'SPECIALIST_BUSY');
+  reasonPreview = await reasonApi.previewBookingAssignment(movableBooking.id, { specialistId: extraSpecialist.id, roomId: 'room-001' });
+  assert.equal(reasonPreview.reason, 'ROOM_UNAVAILABLE');
+  await reasonApi.setSpecialistServices('sp-001', []);
+  reasonPreview = await reasonApi.previewBookingAssignment(movableBooking.id, { specialistId: 'sp-001', roomId: extraRoom.id });
+  assert.equal(reasonPreview.reason, 'SPECIALIST_INELIGIBLE');
+  console.log('PASS assignment preview returns specific direct-conflict reasons');
+
   const maintenanceApi = createApi();
   const maintainedBooking = await maintenanceApi.createBookingRequest({ serviceId: 'classic', date: '2026-12-10', time: '09:00', fullName: 'Клиент Назначенный', phone: '+79996666666' });
   const maintainedPreview = await maintenanceApi.previewBookingAssignment(maintainedBooking.id, { specialistId: 'sp-001', roomId: 'room-001' });
