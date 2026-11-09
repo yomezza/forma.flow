@@ -115,6 +115,26 @@ async function run() {
 
   const finalData = await api.exportData();
   assert.ok(finalData.capacityExceptions.every(exception => exception.resolvedAt !== null));
+
+  const privacyFixture = await api.exportData();
+  const completed = privacyFixture.bookings[0];
+  completed.status = 'completed';
+  completed.specialistId = 'sp-001';
+  completed.clientPhone = '+79990000000';
+  completed.adminNote = 'admin-only';
+  completed.completion = { bySpecialistId: 'sp-001', at: '2026-11-01T10:00:00.000Z' };
+  await api.importData(privacyFixture);
+  await api.selectDemoAccount('acct-owner');
+  await api.switchDemoRole('specialist');
+  const undoResult = await api.undoMyCompletion(completed.id, { reason: 'Проверка DTO' });
+  const specialistBookings = await api.getMyBookings();
+  for (const dto of [undoResult, specialistBookings[0]]) {
+    assert.equal(Object.hasOwn(dto, 'clientPhone'), false);
+    assert.equal(Object.hasOwn(dto, 'adminNote'), false);
+    assert.equal(Object.hasOwn(dto, 'clientId'), false);
+    assert.equal(Object.hasOwn(dto, 'completion'), false);
+  }
+  console.log('PASS specialist mutation privacy DTO');
   console.log('PASS indirect assignment conflict lifecycle');
 }
 
