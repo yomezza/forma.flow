@@ -183,7 +183,7 @@ const DemoAPI = (() => {
     }
   }
   function validate(db) {
-    check(db?.version===3,'Неподдерживаемая версия данных.','VERSION');
+    check(db?.version===4 && Number.isSafeInteger(db.revision) && db.revision>=0,'Неподдерживаемая версия данных.','VERSION');
     for(const [rows,validator] of [[db.services,serviceOK],[db.bookings,bookingOK],[db.clients,clientOK]]) {
       check(Array.isArray(rows));rows.forEach(validator);
       check(new Set(rows.map(r=>r.id)).size===rows.length,'Идентификаторы должны быть уникальными.');
@@ -195,11 +195,9 @@ const DemoAPI = (() => {
     if(db.settings.timeZone){try{new Intl.DateTimeFormat('ru',{timeZone:db.settings.timeZone})}catch{check(false,'Укажите часовой пояс IANA, например Europe/Moscow.')}}
     settingsOK(db.settings);scheduleOK(db.schedule);
     check(Object.keys(initialData().content).every(k=>str(db.content?.[k])),'Заполните текстовые поля.');
-    const occupied=db.bookings.filter(b=>b.status!=='cancelled').sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
-    for(let i=1;i<occupied.length;i++){
-      const a=occupied[i-1],b=occupied[i];
-      check(a.date!==b.date || minutes(a.time)+a.durationMinutes<=minutes(b.time),'Время записей пересекается.');
-    }
+    check(Array.isArray(db.specialists)&&Array.isArray(db.rooms)&&Array.isArray(db.specialistServices)&&Array.isArray(db.specialistSchedules)&&Array.isArray(db.absenceRequests)&&Array.isArray(db.accounts)&&Array.isArray(db.assignmentEvents)&&Array.isArray(db.auditEvents)&&Array.isArray(db.capacityExceptions),'Некорректная схема v4.');
+    check(db.demoSession&&typeof db.demoSession==='object','Некорректная сессия демо.');
+    for(const b of db.bookings) check((b.specialistId==null||typeof b.specialistId==='string')&&(b.roomId==null||typeof b.roomId==='string')&&(b.assignmentUpdatedAt==null||typeof b.assignmentUpdatedAt==='string')&&(b.completion==null||typeof b.completion==='object'),'Некорректное назначение записи.');
   }
   let memory=migrate(initialData()), persistent=true, warning='';
   function storageFailed() {
@@ -210,7 +208,7 @@ const DemoAPI = (() => {
     let raw;
     try {raw=localStorage.getItem(key)} catch {storageFailed();return clone(memory)}
     if(raw===null) return clone(memory);
-    try {const db=JSON.parse(raw);const old=db.version<3 || db.settings?.vacations===undefined;migrate(db);validate(db);if(old) try{localStorage.setItem(key,JSON.stringify(db))}catch{storageFailed()}memory=db;return clone(db)}
+    try {const db=JSON.parse(raw);const old=db.version<4 || db.settings?.vacations===undefined;migrate(db);validate(db);if(old) try{localStorage.setItem(key,JSON.stringify(db))}catch{storageFailed()}memory=db;return clone(db)}
     catch {throw Object.assign(new Error('Сохранённые данные повреждены или имеют другую версию. Используйте импорт или полный сброс.'),{code:'INVALID_DATABASE'})}
   }
   function write(db) {
