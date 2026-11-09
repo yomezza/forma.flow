@@ -12,6 +12,16 @@
     return schedule.week?.[dayOfWeek(date)] || [];
   }
 
+  function studioIntervals(db, date) {
+    if(db.schedule?.activeMode==='advanced') {
+      const rule=db.schedule.published?.[date];
+      return rule?.kind==='working'?(rule.intervals||[]).map(interval=>({...interval,step:rule.stepOverride||db.settings.step})): [];
+    }
+    const settings=db.settings;
+    if(settings.blockedDates?.includes(date)||settings.vacations?.some(period=>date>=period.startDate&&date<=period.endDate)||!settings.workDays?.includes(dayOfWeek(date))) return [];
+    return [{start:settings.start,end:settings.end,step:settings.step}];
+  }
+
   function solveAssignments(db, { date, candidate = null, fixedOverrides = {}, excludedIds = [], nodeLimit = 50000 } = {}) {
     const bookings = db.bookings.filter(row =>
       row.date === date && ['pending_confirmation', 'confirmed'].includes(row.status) &&
@@ -26,6 +36,11 @@
     for (const booking of bookings) {
       const start = minute(booking.time);
       const end = start + booking.durationMinutes;
+      const studioDay=studioIntervals(db,date);
+      const studioAllows=studioDay.some(interval=>{
+        const intervalStart=minute(interval.start),step=interval.step||db.settings.step;
+        return start>=intervalStart&&end<=minute(interval.end)&&(start-intervalStart)%step===0;
+      });
       const forced = fixedOverrides[booking.id] || {};
       const assignedSpecialist = forced.specialistId ?? booking.specialistId ?? null;
       const assignedRoom = forced.roomId ?? booking.roomId ?? null;
@@ -39,6 +54,7 @@
       );
       const allowedServices = new Set(db.specialistServices.filter(item => item.serviceId === booking.serviceId).map(item => item.specialistId));
       const pairs = [];
+      if(!studioAllows){domains.set(booking.id,pairs);continue}
       for (const specialist of specialists) {
         if (assignedSpecialist && specialist.id !== assignedSpecialist) continue;
         if (!allowedServices.has(specialist.id) || approvedAbsence(specialist.id)) continue;
