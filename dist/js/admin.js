@@ -431,6 +431,16 @@
       page.replaceChildren(element('h3','Мои записи'));
       page.append(button('Вернуться в режим администратора',async()=>{try{await SiteAPI.selectDemoAccount('acct-owner');await SiteAPI.switchDemoRole('admin');await show(0)}catch(error){message(error.message)}},'admin-action'));
       try{
+        const demoAccount=await SiteAPI.getMyDemoAccount();
+        if(demoAccount.mustCompleteFirstDemoLogin){
+          page.append(element('p','Это учебная смена пароля. Введённые значения используются только для демонстрации и не сохраняются.'));
+          const firstLogin=element('form',undefined,'edit-form');
+          inputField(firstLogin,'Новый демо-пароль','demoPassword','password','',{required:true,minLength:8});
+          inputField(firstLogin,'Повторите демо-пароль','demoPasswordAgain','password','',{required:true,minLength:8});
+          const complete=element('button','Завершить первый вход','btn');complete.type='submit';firstLogin.append(complete);
+          firstLogin.onsubmit=async event=>{event.preventDefault();const first=firstLogin.elements.demoPassword.value,again=firstLogin.elements.demoPasswordAgain.value;if(first.length<8||first!==again){message('Пароли должны совпасть и содержать не менее 8 символов.');return}try{await SiteAPI.completeFirstDemoLogin();await refresh()}catch(error){message(error.message)}};
+          page.append(firstLogin);return;
+        }
         const bookings=await SiteAPI.getMyBookings();
         for(const booking of bookings){
           const row=card(booking.clientName,`${booking.date} · ${booking.time} · ${booking.serviceName} · ${booking.status==='pending_confirmation'?'Ожидает подтверждения':statuses[booking.status]}`);
