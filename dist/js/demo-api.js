@@ -267,19 +267,42 @@ const DemoAPI = (() => {
     }
     return slots;
   }
+  function assignmentFailure(db,bookingId,specialistId,roomId,reason){
+    return {allowed:false,requiresConfirmation:false,revision:db.revision,bookingId,specialistId,roomId,affectedBookingIds:[],reason};
+  }
   function planAssignment(db,bookingId,specialistId,roomId){
     const booking=find(db.bookings,bookingId);check(['pending_confirmation','confirmed'].includes(booking.status),'Отменённую или завершённую запись нельзя переназначить.','INVALID_STATUS_TRANSITION');
+    const specialist=db.specialists.find(row=>row.id===specialistId);
+    if(!specialist||specialist.state!=='active'||!db.specialistServices.some(row=>row.specialistId===specialistId&&row.serviceId===booking.serviceId))return assignmentFailure(db,bookingId,specialistId,roomId,'SPECIALIST_INELIGIBLE');
+    const schedule=db.specialistSchedules.find(row=>row.specialistId===specialistId),day=new Date(booking.date+'T12:00:00').getDay(),override=schedule?.overrides?.[booking.date];
+    const intervals=override?(override.kind==='working'?override.intervals:[]):schedule?.week?.[day]||[];
+    const start=minutes(booking.time),end=start+booking.durationMinutes,hasShift=intervals.some(range=>start>=minutes(range.start)&&end<=minutes(range.end));
+    const hasAbsence=db.absenceRequests.some(absence=>absence.specialistId===specialistId&&absence.status==='approved'&&booking.date>=absence.startDate&&booking.date<=absence.endDate&&(absence.scope!=='partial_day'||(start<minutes(absence.endTime)&&minutes(absence.startTime)<end+db.settings.breakMinutes)));
+    if(!hasShift||hasAbsence)return assignmentFailure(db,bookingId,specialistId,roomId,'SPECIALIST_OFF');
+    const activeRooms=db.rooms.filter(room=>room.isActive);
+    if(!activeRooms.length||(roomId&&!activeRooms.some(room=>room.id===roomId)))return assignmentFailure(db,bookingId,specialistId,roomId,'ROOM_UNAVAILABLE');
+    const reservationEnd=end+db.settings.breakMinutes;
+    for(const other of db.bookings.filter(row=>row.id!==bookingId&&row.date===booking.date&&activeRequest(row))){
+      const otherStart=minutes(other.time),otherEnd=otherStart+other.durationMinutes+db.settings.breakMinutes;
+      if(start>=otherEnd||otherStart>=reservationEnd)continue;
+      if(other.specialistId===specialistId)return assignmentFailure(db,bookingId,specialistId,roomId,'SPECIALIST_BUSY');
+      if(roomId&&other.roomId===roomId)return assignmentFailure(db,bookingId,specialistId,roomId,'ROOM_UNAVAILABLE');
+    }
     const options={date:booking.date,anchorBookingId:bookingId,ignoreCapacityExceptions:true,fixedOverrides:{[bookingId]:{specialistId,roomId}}};
     const direct=globalThis.FormaAssignmentEngine.solveAssignments(db,options);
     if(direct.feasible)return {allowed:true,requiresConfirmation:false,revision:db.revision,bookingId,specialistId,roomId:roomId||direct.allocations[bookingId]?.roomId||null,affectedBookingIds:[],reason:null};
     if(direct.reason==='UNRESOLVED_CAPACITY_CONFLICT')return {allowed:false,requiresConfirmation:false,revision:db.revision,bookingId,specialistId,roomId,affectedBookingIds:direct.affectedBookingIds,reason:direct.reason};
+    if(direct.uncertain)return assignmentFailure(db,bookingId,specialistId,roomId,'CAPACITY_CHECK_LIMIT');
     const unassigned=direct.affectedBookingIds.map(id=>db.bookings.find(row=>row.id===id)).filter(row=>row&&row.id!==bookingId&&!row.specialistId).sort((a,b)=>a.id.localeCompare(b.id));
     const excluded=[];
     for(const affected of unassigned){
       const result=globalThis.FormaAssignmentEngine.solveAssignments(db,{...options,excludedIds:[...excluded,affected.id]});
+      if(result.uncertain)return assignmentFailure(db,bookingId,specialistId,roomId,'CAPACITY_CHECK_LIMIT');
       if(result.feasible)excluded.push(affected.id);
     }
-    if(excluded.length&&globalThis.FormaAssignmentEngine.solveAssignments(db,{...options,excludedIds:excluded}).feasible){
+    const afterExclusion=excluded.length?globalThis.FormaAssignmentEngine.solveAssignments(db,{...options,excludedIds:excluded}):null;
+    if(afterExclusion?.uncertain)return assignmentFailure(db,bookingId,specialistId,roomId,'CAPACITY_CHECK_LIMIT');
+    if(excluded.length&&afterExclusion?.feasible){
       return {allowed:true,requiresConfirmation:true,revision:db.revision,bookingId,specialistId,roomId:roomId||null,affectedBookingIds:excluded,reason:'INDIRECT_ASSIGNMENT_CONFLICT'};
     }
     return {allowed:false,requiresConfirmation:false,revision:db.revision,bookingId,specialistId,roomId,affectedBookingIds:[],reason:direct.reason||'DIRECT_RESOURCE_CONFLICT'};
