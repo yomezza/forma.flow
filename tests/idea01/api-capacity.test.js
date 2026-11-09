@@ -6,6 +6,7 @@ const { webcrypto } = require('node:crypto');
 
 function createApi() {
   const storage = new Map();
+  let storageFails = false;
   const context = {
     console,
     Date,
@@ -26,7 +27,7 @@ function createApi() {
     APP_CONFIG: { preloaderDuration: 0, demoMode: true },
     localStorage: {
       getItem: key => storage.has(key) ? storage.get(key) : null,
-      setItem: (key, value) => storage.set(key, value),
+      setItem: (key, value) => { if (storageFails) throw Object.assign(new Error('quota'), { name: 'QuotaExceededError' }); storage.set(key, value); },
       removeItem: key => storage.delete(key)
     },
     window: { addEventListener() {}, dispatchEvent() {} },
@@ -39,6 +40,8 @@ function createApi() {
   }
   const apiSource = fs.readFileSync(path.join(__dirname, '../../dist/js/demo-api.js'), 'utf8');
   vm.runInContext(apiSource + ';globalThis.testAPI=DemoAPI;', context);
+  context.testAPI.__setStorageFailure = value => { storageFails = value; };
+  context.testAPI.__getPersistedStorage = () => storage.get('formaTela.demo.v1');
   return context.testAPI;
 }
 
@@ -57,6 +60,9 @@ async function run() {
   assert.equal(migrated.bookings[0].id, legacyBooking.id);
   assert.equal(migrated.bookings[0].specialistId, null);
   assert.equal(migrated.bookings[0].roomId, null);
+  assert.equal(migrated.bookings[0].priceAmount, legacyV3.bookings[0].priceAmount);
+  assert.deepEqual(migrated.schedule, legacyV3.schedule);
+  assert.deepEqual(migrated.content, legacyV3.content);
   assert.equal(migrated.clients.filter(client => client.phoneNormalized === '+79994444444').length, 2);
   assert.equal(migrated.specialists.filter(item => item.state === 'active').length, 1);
   assert.equal(migrated.rooms.filter(item => item.isActive).length, 1);
@@ -64,10 +70,32 @@ async function run() {
   const repeatedMigration = await migrationApi.exportData();
   assert.equal(repeatedMigration.specialists.length, 1);
   assert.equal(repeatedMigration.rooms.length, 1);
+  const legacyV2 = structuredClone(legacyV3);
+  legacyV2.version = 2;
+  await migrationApi.importData(legacyV2);
+  assert.equal((await migrationApi.exportData()).bookings[0].id, legacyBooking.id);
+  const legacyV1 = structuredClone(legacyV3);
+  legacyV1.version = 1;
+  delete legacyV1.clients;
+  delete legacyV1.schedule;
+  await migrationApi.importData(legacyV1);
+  const migratedV1 = await migrationApi.exportData();
+  assert.equal(migratedV1.version, 4);
+  assert.equal(migratedV1.bookings[0].id, legacyBooking.id);
+  assert.equal(migratedV1.schedule.activeMode, 'simple');
   const stableBeforeInvalidImport = await migrationApi.exportData();
   await assert.rejects(migrationApi.importData({ ...stableBeforeInvalidImport, version: 5 }));
   assert.equal((await migrationApi.exportData()).revision, stableBeforeInvalidImport.revision);
   console.log('PASS v3 migration, repeated import, and duplicate phone preservation');
+
+  const storageApi = createApi();
+  const persistedBeforeFailure = storageApi.__getPersistedStorage();
+  storageApi.__setStorageFailure(true);
+  await storageApi.updateSettings({ calendarTitle: 'Изменение в памяти' });
+  assert.equal((await storageApi.getSettings()).calendarTitle, 'Изменение в памяти');
+  assert.equal(storageApi.__getPersistedStorage(), persistedBeforeFailure);
+  assert.ok(storageApi.getWarning());
+  console.log('PASS localStorage failure preserves prior persisted data and warns');
 
   const singleCapacityApi = createApi();
   const firstRequest = await singleCapacityApi.createBookingRequest({ serviceId: 'classic', date: '2026-12-07', time: '09:00', fullName: 'Клиент Первый', phone: '+79998888881' });
