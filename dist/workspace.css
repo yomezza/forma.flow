@@ -619,3 +619,17 @@
 @media (prefers-reduced-motion: reduce) {
   #admin *, #admin *::before, #admin *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+
+/* Keep the full workspace switcher in view at common laptop widths. */
+@media (min-width: 741px) and (max-width: 1400px) {
+  #admin .admin-head { gap: 8px; padding-inline: 16px; }
+  #admin .demo-label { display: none; }
+  #admin .workspace-switcher { flex: 0 1 auto; min-width: 0; }
+  #admin .workspace-switcher button { padding-inline: 8px; font-size: 11px; }
+}
+@media (min-width: 741px) and (max-width: 1024px) {
+  #admin .admin-head { flex-wrap: wrap; }
+  #admin .admin-identity { flex: 1 1 180px; }
+  #admin .workspace-switcher { flex: 1 0 100%; justify-content: flex-end; }
+}
