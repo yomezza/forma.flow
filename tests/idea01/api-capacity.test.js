@@ -70,6 +70,12 @@ async function run() {
   console.log('PASS v3 migration, repeated import, and duplicate phone preservation');
 
   const api = createApi();
+  const ownAccount = await api.getMyDemoAccount();
+  assert.deepEqual([...ownAccount.roles], ['admin', 'specialist']);
+  assert.equal(ownAccount.activeRole, 'admin');
+  await api.switchDemoRole('specialist');
+  assert.equal((await api.getMyDemoAccount()).activeRole, 'specialist');
+  await api.switchDemoRole('admin');
   const room = await api.createRoom({ name: 'Кабинет 2', sortOrder: 1 });
   const specialist = await api.createSpecialist({
     fullName: 'Специалист два',
