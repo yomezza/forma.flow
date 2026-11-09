@@ -251,6 +251,22 @@ const DemoAPI = (() => {
     }
     return slots;
   }
+  function planAssignment(db,bookingId,specialistId,roomId){
+    const booking=find(db.bookings,bookingId),options={date:booking.date,anchorBookingId:bookingId,ignoreCapacityExceptions:true,fixedOverrides:{[bookingId]:{specialistId,roomId}}};
+    const direct=globalThis.FormaAssignmentEngine.solveAssignments(db,options);
+    if(direct.feasible)return {allowed:true,requiresConfirmation:false,revision:db.revision,bookingId,specialistId,roomId:roomId||direct.allocations[bookingId]?.roomId||null,affectedBookingIds:[],reason:null};
+    if(direct.reason==='UNRESOLVED_CAPACITY_CONFLICT')return {allowed:false,requiresConfirmation:false,revision:db.revision,bookingId,specialistId,roomId,affectedBookingIds:direct.affectedBookingIds,reason:direct.reason};
+    const unassigned=direct.affectedBookingIds.map(id=>db.bookings.find(row=>row.id===id)).filter(row=>row&&row.id!==bookingId&&!row.specialistId).sort((a,b)=>a.id.localeCompare(b.id));
+    const excluded=[];
+    for(const affected of unassigned){
+      const result=globalThis.FormaAssignmentEngine.solveAssignments(db,{...options,excludedIds:[...excluded,affected.id]});
+      if(result.feasible)excluded.push(affected.id);
+    }
+    if(excluded.length&&globalThis.FormaAssignmentEngine.solveAssignments(db,{...options,excludedIds:excluded}).feasible){
+      return {allowed:true,requiresConfirmation:true,revision:db.revision,bookingId,specialistId,roomId:roomId||null,affectedBookingIds:excluded,reason:'INDIRECT_ASSIGNMENT_CONFLICT'};
+    }
+    return {allowed:false,requiresConfirmation:false,revision:db.revision,bookingId,specialistId,roomId,affectedBookingIds:[],reason:direct.reason||'DIRECT_RESOURCE_CONFLICT'};
+  }
   async function change(fn) {
     const perform=()=>{const db=read(), result=fn(db);db.revision=(db.revision||0)+1;write(db);return clone(result??null)};
     return globalThis.navigator?.locks ? navigator.locks.request(key,perform) : perform();
@@ -378,23 +394,36 @@ const DemoAPI = (() => {
       const db=read();requireAdmin(db);const booking=find(db.bookings,id),candidates=[];
       for(const specialist of db.specialists.filter(row=>row.state==='active'&&db.specialistServices.some(link=>link.specialistId===row.id&&link.serviceId===booking.serviceId))){
         for(const room of db.rooms.filter(row=>row.isActive)){
-          const outcome=FormaAssignmentEngine.solveAssignments(db,{date:booking.date,anchorBookingId:id,fixedOverrides:{[id]:{specialistId:specialist.id,roomId:room.id}}});
-          if(outcome.feasible)candidates.push({specialistId:specialist.id,roomId:room.id});
+          const preview=planAssignment(db,id,specialist.id,room.id);
+          if(preview.allowed)candidates.push({specialistId:specialist.id,roomId:room.id,requiresConfirmation:preview.requiresConfirmation,affectedBookingIds:preview.affectedBookingIds});
         }
       }
       return {revision:db.revision,candidates};
     },
     async previewBookingAssignment(id,{specialistId,roomId=null}={}){
-      const db=read();requireAdmin(db);const booking=find(db.bookings,id),outcome=FormaAssignmentEngine.solveAssignments(db,{date:booking.date,anchorBookingId:id,fixedOverrides:{[id]:{specialistId,roomId}}});
-      return {allowed:outcome.feasible,revision:db.revision,specialistId,roomId,reason:outcome.reason,affectedBookingIds:outcome.affectedBookingIds};
+      const db=read();requireAdmin(db);return planAssignment(db,id,specialistId,roomId);
     },
     assignBooking:(id,{specialistId,roomId=null,expectedRevision,acknowledgedBookingIds=[]}={})=>change(db=>{
       requireAdmin(db);if(expectedRevision!==undefined)check(expectedRevision===db.revision,'Данные изменились. Повторите предпросмотр.','STALE_REVISION');
       const booking=find(db.bookings,id),before={specialistId:booking.specialistId,roomId:booking.roomId};
-      const outcome=FormaAssignmentEngine.solveAssignments(db,{date:booking.date,anchorBookingId:id,fixedOverrides:{[id]:{specialistId,roomId}}});
-      check(outcome.feasible,'Назначение конфликтует с ресурсами или другими заявками.','DIRECT_RESOURCE_CONFLICT');
-      booking.specialistId=specialistId;booking.roomId=roomId||outcome.allocations[id]?.roomId||null;booking.assignmentUpdatedAt=new Date().toISOString();
-      db.assignmentEvents.push({id:uid(),bookingId:id,at:booking.assignmentUpdatedAt,fromSpecialistId:before.specialistId,toSpecialistId:booking.specialistId,fromRoomId:before.roomId,toRoomId:booking.roomId});
+      const plan=planAssignment(db,id,specialistId,roomId);
+      check(plan.allowed,plan.reason==='UNRESOLVED_CAPACITY_CONFLICT'?'В компоненте остался нерешённый конфликт ёмкости.':'Назначение конфликтует с закреплённой записью или ресурсом.',plan.reason||'DIRECT_RESOURCE_CONFLICT');
+      if(plan.requiresConfirmation){
+        const expected=[...plan.affectedBookingIds].sort(),actual=[...acknowledgedBookingIds].sort();
+        check(JSON.stringify(expected)===JSON.stringify(actual),'Подтвердите точный список вытесняемых заявок.','CONFLICT_ACK_REQUIRED');
+      }
+      booking.specialistId=specialistId;booking.roomId=plan.roomId;booking.assignmentUpdatedAt=new Date().toISOString();
+      const event={id:uid(),bookingId:id,at:booking.assignmentUpdatedAt,fromSpecialistId:before.specialistId,toSpecialistId:booking.specialistId,fromRoomId:before.roomId,toRoomId:booking.roomId};
+      db.assignmentEvents.push(event);
+      db.auditEvents.push({id:uid(),actorAccountId:db.demoSession.activeAccountId,activeRole:'admin',action:'booking.assignment_changed',entityType:'booking',entityId:id,metadata:{...before,newSpecialistId:booking.specialistId,newRoomId:booking.roomId},at:event.at});
+      if(plan.requiresConfirmation){
+        for(const affectedId of plan.affectedBookingIds){const affected=db.bookings.find(row=>row.id===affectedId);if(affected)affected.requiresReassignment=true}
+        db.capacityExceptions.push({id:uid(),createdByEventId:event.id,bookingIds:plan.affectedBookingIds,reason:'INDIRECT_ASSIGNMENT_CONFLICT',createdAt:event.at,resolvedAt:null});
+      }
+      for(const exception of db.capacityExceptions.filter(row=>row.resolvedAt==null&&row.bookingIds.includes(id))){
+        const result=FormaAssignmentEngine.solveAssignments(db,{date:booking.date,anchorBookingId:id,ignoreCapacityExceptions:true});
+        if(result.feasible){exception.resolvedAt=new Date().toISOString();for(const relatedId of exception.bookingIds){const related=db.bookings.find(row=>row.id===relatedId);if(related)related.requiresReassignment=false}}
+      }
       return booking;
     }),
     async getBookingAssignmentEvents(id){const db=read();requireAdmin(db);return db.assignmentEvents.filter(event=>event.bookingId===id)},
