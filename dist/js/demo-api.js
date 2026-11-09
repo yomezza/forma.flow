@@ -299,8 +299,11 @@ const DemoAPI = (() => {
         if(!fits(db,booking,effective(db,booking.date)))items.push({code:'OUTSIDE_STUDIO_SCHEDULE',bookingId:booking.id,message:'Запись вне опубликованного расписания'});
       }
       for(const request of db.absenceRequests.filter(row=>row.status==='pending'))items.push({code:'ABSENCE_REVIEW_PENDING',absenceRequestId:request.id,message:'Заявка на отсутствие ожидает решения'});
-      return {revision:db.revision,items,counts:{total:items.length}};
+      for(const exception of db.capacityExceptions.filter(row=>row.resolvedAt==null))for(const bookingId of exception.bookingIds)items.push({code:'INDIRECT_ASSIGNMENT_CONFLICT',bookingId,message:'Открытый конфликт распределения'});
+      const byCode={};for(const item of items)byCode[item.code]=(byCode[item.code]||0)+1;
+      return {revision:db.revision,items,counts:{byCode,total:items.length}};
     },
+    async getBookingAttention(id){const result=await DemoAPI.getAttentionItems();return result.items.filter(item=>item.bookingId===id)},
     async getBookingsForDate(d){const db=read();requireAdmin(db);return db.bookings.filter(b=>b.date===d)},
     async previewScheduleModeChange(mode,a,b){
       const db=read(),list=dates(a,b),live=db.services.filter(s=>s.isActive);
