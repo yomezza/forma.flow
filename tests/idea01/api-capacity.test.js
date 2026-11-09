@@ -43,6 +43,32 @@ function createApi() {
 }
 
 async function run() {
+  const migrationApi = createApi();
+  const legacyBooking = await migrationApi.createBookingRequest({ serviceId: 'classic', date: '2026-12-03', time: '09:00', fullName: 'Клиент Старый', phone: '+79993333333' });
+  await migrationApi.createClient({ fullName: 'Анна Общая', phone: '+79994444444' });
+  await migrationApi.createClient({ fullName: 'Иван Общий', phone: '+79994444444' });
+  const legacyV3 = structuredClone(await migrationApi.exportData());
+  legacyV3.version = 3;
+  for (const field of ['revision', 'specialists', 'rooms', 'specialistServices', 'specialistSchedules', 'absenceRequests', 'accounts', 'demoSession', 'assignmentEvents', 'auditEvents', 'capacityExceptions']) delete legacyV3[field];
+  for (const booking of legacyV3.bookings) for (const field of ['specialistId', 'roomId', 'assignmentUpdatedAt', 'completion']) delete booking[field];
+  await migrationApi.importData(legacyV3);
+  const migrated = await migrationApi.exportData();
+  assert.equal(migrated.version, 4);
+  assert.equal(migrated.bookings[0].id, legacyBooking.id);
+  assert.equal(migrated.bookings[0].specialistId, null);
+  assert.equal(migrated.bookings[0].roomId, null);
+  assert.equal(migrated.clients.filter(client => client.phoneNormalized === '+79994444444').length, 2);
+  assert.equal(migrated.specialists.filter(item => item.state === 'active').length, 1);
+  assert.equal(migrated.rooms.filter(item => item.isActive).length, 1);
+  await migrationApi.importData(migrated);
+  const repeatedMigration = await migrationApi.exportData();
+  assert.equal(repeatedMigration.specialists.length, 1);
+  assert.equal(repeatedMigration.rooms.length, 1);
+  const stableBeforeInvalidImport = await migrationApi.exportData();
+  await assert.rejects(migrationApi.importData({ ...stableBeforeInvalidImport, version: 5 }));
+  assert.equal((await migrationApi.exportData()).revision, stableBeforeInvalidImport.revision);
+  console.log('PASS v3 migration, repeated import, and duplicate phone preservation');
+
   const api = createApi();
   const room = await api.createRoom({ name: 'Кабинет 2', sortOrder: 1 });
   const specialist = await api.createSpecialist({
