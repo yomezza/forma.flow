@@ -154,6 +154,10 @@ async function run() {
   assert.equal(schedule.dataRevision, (await api.exportData()).revision);
   await api.updateSpecialist('sp-001', { fullName: 'Специалист владелец' });
   await assert.rejects(api.setSpecialistSchedule('sp-001', { week: schedule.week, overrides: schedule.overrides, expectedRevision: schedule.dataRevision }), error => error.code === 'STALE_REVISION');
+  const currentSchedule = await api.getSpecialistSchedule('sp-001');
+  const overrideDate = '2026-12-08';
+  await api.setSpecialistSchedule('sp-001', { week: currentSchedule.week, overrides: { ...currentSchedule.overrides, [overrideDate]: { kind: 'off', intervals: [] } }, expectedRevision: currentSchedule.dataRevision });
+  assert.deepEqual([...(await api.getAvailableSlots(overrideDate, 'classic'))], []);
   const beforeInvalidSchedule = await api.exportData();
   const badWeek = structuredClone(schedule.week);
   badWeek[1] = [{ start: '12:00', end: '11:00' }];
