@@ -189,7 +189,6 @@ const DemoAPI = (() => {
       check(Array.isArray(rows));rows.forEach(validator);
       check(new Set(rows.map(r=>r.id)).size===rows.length,'Идентификаторы должны быть уникальными.');
     }
-    check(new Set(db.clients.map(c=>c.phoneNormalized)).size===db.clients.length,'Номера клиентов должны быть уникальны.');
     check(db.bookings.every(b=>b.clientId==null||db.clients.some(c=>c.id===b.clientId)),'Клиент записи отсутствует.');
     if(db.settings.calendarTitle!==undefined)check(str(db.settings.calendarTitle,120),'Введите название длиной до 120 символов.');
     if(db.settings.address!==undefined)check(typeof db.settings.address==='string'&&db.settings.address.length<=500,'Введите адрес длиной до 500 символов.');
