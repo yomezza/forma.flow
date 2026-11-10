@@ -61,6 +61,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (out domain
 	}
 	ok := Verify(hash, password)
 	if !ok || e != nil {
+		_ = postgres.Audit(ctx, s.Store.Pool, "", "auth.login_failed", "authentication", "", domain.M{})
 		return out, domain.AuthRequired
 	}
 	err = s.Store.InTx(ctx, func(db postgres.DB) error {

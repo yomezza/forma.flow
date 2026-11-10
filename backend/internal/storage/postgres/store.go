@@ -52,6 +52,9 @@ func (s *Store) InTx(ctx context.Context, fn func(DB) error) error {
 	return MapError(tx.Commit(ctx))
 }
 func MapError(err error) error {
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return domain.Fail("RETRY_LATER", 503, "Время выполнения запроса истекло.")
+	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.NotFound
 	}
