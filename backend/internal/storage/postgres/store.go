@@ -82,3 +82,15 @@ func (s *Store) CheckSchema(ctx context.Context) error {
 }
 
 const SchemaVersion = 4
+
+func (s *Store) ReadTx(ctx context.Context, fn func(DB) error) error {
+	tx, err := s.Pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(context.Background())
+	if err = fn(tx); err != nil {
+		return MapError(err)
+	}
+	return MapError(tx.Commit(ctx))
+}
