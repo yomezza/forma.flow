@@ -40,7 +40,11 @@ func run() error {
 	if err = db.CheckSchema(setup); err != nil {
 		return err
 	}
-	server := &http.Server{Addr: cfg.HTTPAddr, Handler: httptransport.New(db, log), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
+	studio, err := db.Studio(setup, cfg.StudioTimeZone)
+	if err != nil {
+		return err
+	}
+	server := &http.Server{Addr: cfg.HTTPAddr, Handler: httptransport.API(db, log, cfg, studio, nil), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
 	done := make(chan error, 1)
 	go func() { done <- server.ListenAndServe() }()
 	log.Info("server listening", "address", cfg.HTTPAddr)
