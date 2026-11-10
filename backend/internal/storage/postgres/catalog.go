@@ -8,7 +8,7 @@ import (
 const ServiceJSON = `jsonb_build_object('id',id,'name',name,'description',description,'durationMinutes',duration_minutes,'priceAmount',price_amount,'currency',currency,'visualSymbol',visual_symbol,'sortOrder',sort_order,'isActive',is_active)`
 
 func Catalog(ctx context.Context, db DB, all bool) ([]domain.M, error) {
-	return Objects(ctx, db, "SELECT "+ServiceJSON+" FROM services WHERE ($1 OR is_active) ORDER BY sort_order,id", all)
+	return ObjectsPage(ctx, db, "SELECT "+ServiceJSON+" FROM services WHERE ($1 OR is_active) ORDER BY sort_order,id", all)
 }
 func Service(ctx context.Context, db DB, id string) (domain.M, error) {
 	return Object(ctx, db, "SELECT "+ServiceJSON+" FROM services WHERE id=$1", id)
@@ -23,7 +23,7 @@ func UpdateService(ctx context.Context, db DB, id string, m domain.M) (domain.M,
 const ClientJSON = `jsonb_build_object('id',id,'fullName',full_name,'phoneNormalized',phone_normalized,'createdAt',created_at,'updatedAt',updated_at)`
 
 func Clients(ctx context.Context, db DB, phone, search string) ([]domain.M, error) {
-	return Objects(ctx, db, "SELECT "+ClientJSON+" FROM clients WHERE ($1='' OR phone_normalized=$1) AND ($2='' OR full_name ILIKE '%'||$2||'%' OR phone_normalized LIKE '%'||$2||'%') ORDER BY full_name,id", phone, search)
+	return ObjectsPage(ctx, db, "SELECT "+ClientJSON+" FROM clients WHERE ($1='' OR phone_normalized=$1) AND ($2='' OR full_name ILIKE '%'||$2||'%' OR phone_normalized LIKE '%'||$2||'%') ORDER BY full_name,id", phone, search)
 }
 func Client(ctx context.Context, db DB, id string) (domain.M, error) {
 	return Object(ctx, db, "SELECT "+ClientJSON+" FROM clients WHERE id=$1", id)
