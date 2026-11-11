@@ -2,3 +2,6 @@
 backend/bin/
 *.test
 coverage.out
+
+backend/.venv/
+__pycache__/
