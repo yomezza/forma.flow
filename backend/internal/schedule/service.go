@@ -12,9 +12,17 @@ import (
 type Service struct {
 	Store    *postgres.Store
 	StudioID string
+	TimeZone string
 	Engine   Engine
 }
 
+func (s *Service) today() string {
+	loc, err := time.LoadLocation(s.TimeZone)
+	if err != nil {
+		panic("schedule service requires a configured IANA timezone")
+	}
+	return s.Engine.Clock.Now().In(loc).Format("2006-01-02")
+}
 func Range(from, to string, max int) ([]string, error) {
 	a, e := Date(from)
 	if e != nil {
@@ -81,7 +89,7 @@ func snapshot(d domain.ScheduleData) domain.M {
 }
 func (s *Service) Read(ctx context.Context, operation, date, stage, from, to string) (out domain.M, err error) {
 	if from == "" {
-		from = s.Engine.Clock.Now().UTC().Format("2006-01-02")
+		from = s.today()
 	}
 	if to == "" {
 		to = from
@@ -199,7 +207,7 @@ func (s *Service) Mutate(ctx context.Context, a domain.Actor, operation, date, i
 	}
 	from, to := in.String("from"), in.String("to")
 	if from == "" {
-		from = s.Engine.Clock.Now().UTC().Format("2006-01-02")
+		from = s.today()
 	}
 	if to == "" {
 		to = from
@@ -207,6 +215,11 @@ func (s *Service) Mutate(ctx context.Context, a domain.Actor, operation, date, i
 	if date != "" {
 		from = date
 		to = date
+	}
+	if operation == "restore" {
+		from = s.today()
+		start, _ := Date(from)
+		to = start.AddDate(0, 0, 365).Format("2006-01-02")
 	}
 	dates, e := Range(from, to, 366)
 	if e != nil {
@@ -351,8 +364,13 @@ func (s *Service) Preview(ctx context.Context, a domain.Actor, operation, id str
 	}
 	from, to := in.String("from"), in.String("to")
 	if from == "" {
-		from = s.Engine.Clock.Now().UTC().Format("2006-01-02")
+		from = s.today()
 		to = from
+	}
+	if operation == "restore" {
+		from = s.today()
+		start, _ := Date(from)
+		to = start.AddDate(0, 0, 365).Format("2006-01-02")
 	}
 	dates, e := Range(from, to, 366)
 	if e != nil {
@@ -453,7 +471,7 @@ func (s *Service) Vacation(ctx context.Context, a domain.Actor, id string, in do
 		from := in.String("startDate")
 		to := in.String("endDate")
 		if remove {
-			from = s.Engine.Clock.Now().UTC().Format("2006-01-02")
+			from = s.today()
 			to = from
 		}
 		before, e := postgres.Snapshot(ctx, db, s.StudioID, from, to)

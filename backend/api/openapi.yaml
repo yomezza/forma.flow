@@ -30,6 +30,12 @@
       "operationId": "listServices"
       "summary": "Public active services"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -82,6 +88,12 @@
         -
           "$ref": "#/components/parameters/ServiceId"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -138,6 +150,12 @@
         -
           "$ref": "#/components/parameters/ServiceQuery"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -195,6 +213,12 @@
         -
           "$ref": "#/components/parameters/ServiceRequired"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -264,6 +288,18 @@
               "consentAccepted": true
               "consentVersion": "v1"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Origin or CSRF verification failed"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Idempotent replay of identical body/key"
           "content":
@@ -329,6 +365,12 @@
       "operationId": "getPublicSiteSettings"
       "summary": "Public visual and calendar event settings"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -378,6 +420,12 @@
       "operationId": "getPublicSiteContent"
       "summary": "Public site copy"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -430,6 +478,12 @@
         -
           "staffCookie": []
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -499,6 +553,12 @@
         -
           "$ref": "#/components/parameters/Limit"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -571,6 +631,12 @@
             "schema":
               "$ref": "#/components/schemas/ServiceInput"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "201":
           "description": "Successful response"
           "content":
@@ -646,6 +712,12 @@
             "schema":
               "$ref": "#/components/schemas/ServicePatch"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -714,6 +786,12 @@
         -
           "$ref": "#/components/parameters/Csrf"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "204":
           "description": "Completed; no content"
         "400":
@@ -783,6 +861,12 @@
         -
           "$ref": "#/components/parameters/Limit"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -852,6 +936,12 @@
         -
           "$ref": "#/components/parameters/Csrf"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -927,6 +1017,12 @@
             "schema":
               "$ref": "#/components/schemas/StatusNote"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -996,6 +1092,12 @@
         -
           "$ref": "#/components/parameters/Csrf"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -1060,6 +1162,12 @@
         -
           "staffCookie": []
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -1129,6 +1237,12 @@
         -
           "$ref": "#/components/parameters/Limit"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -1201,6 +1315,12 @@
             "schema":
               "$ref": "#/components/schemas/ClientInput"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "201":
           "description": "Successful response"
           "content":
@@ -1271,6 +1391,12 @@
         -
           "$ref": "#/components/parameters/Phone"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -1339,6 +1465,12 @@
         -
           "$ref": "#/components/parameters/ClientId"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -1413,6 +1545,12 @@
             "schema":
               "$ref": "#/components/schemas/ClientPatch"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -1484,6 +1622,12 @@
         -
           "$ref": "#/components/parameters/Limit"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -1555,6 +1699,12 @@
         -
           "$ref": "#/components/parameters/Limit"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -1627,6 +1777,12 @@
             "schema":
               "$ref": "#/components/schemas/VacationInput"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "201":
           "description": "Successful response"
           "content":
@@ -1702,6 +1858,12 @@
             "schema":
               "$ref": "#/components/schemas/VacationPatch"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -1772,6 +1934,12 @@
         -
           "$ref": "#/components/parameters/IfMatch"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "204":
           "description": "Completed; no content"
         "400":
@@ -1832,6 +2000,12 @@
         -
           "staffCookie": []
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -1904,6 +2078,12 @@
             "schema":
               "$ref": "#/components/schemas/SiteSettings"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -1968,6 +2148,12 @@
         -
           "staffCookie": []
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -2040,6 +2226,12 @@
             "schema":
               "$ref": "#/components/schemas/SimpleScheduleInput"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -2104,6 +2296,12 @@
         -
           "staffCookie": []
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -2176,6 +2374,12 @@
             "schema":
               "$ref": "#/components/schemas/ScheduleModeChange"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -2249,6 +2453,12 @@
             "schema":
               "$ref": "#/components/schemas/ModePreviewRequest"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -2320,6 +2530,12 @@
         -
           "$ref": "#/components/parameters/Stage"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -2387,6 +2603,12 @@
         -
           "$ref": "#/components/parameters/DatePath"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -2462,6 +2684,12 @@
             "schema":
               "$ref": "#/components/schemas/DraftDayInput"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -2535,6 +2763,12 @@
             "schema":
               "$ref": "#/components/schemas/DraftRangeInput"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -2608,6 +2842,12 @@
             "schema":
               "$ref": "#/components/schemas/RangeRequest"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -2681,6 +2921,12 @@
             "schema":
               "$ref": "#/components/schemas/RangeRequest"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -2757,6 +3003,12 @@
             "schema":
               "$ref": "#/components/schemas/PublishInput"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -2826,6 +3078,12 @@
         -
           "$ref": "#/components/parameters/Limit"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -2895,6 +3153,12 @@
         -
           "$ref": "#/components/parameters/Csrf"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -2970,6 +3234,12 @@
             "schema":
               "$ref": "#/components/schemas/RevisionOnly"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -3043,6 +3313,12 @@
             "schema":
               "$ref": "#/components/schemas/SiteContent"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -3110,6 +3386,12 @@
         -
           "$ref": "#/components/parameters/Csrf"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -3196,6 +3478,12 @@
                     "fullName": "Мария Петрова"
                     "phone": "+79991234567"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Booking with explicit client association"
           "content":
@@ -5353,6 +5641,18 @@
             "schema":
               "$ref": "#/components/schemas/LoginInput"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
+        "403":
+          "description": "Origin or CSRF verification failed"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "201":
           "description": "Successful response"
           "content":
@@ -5412,6 +5712,12 @@
         -
           "staffCookie": []
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Successful response"
           "content":
@@ -5479,6 +5785,12 @@
         -
           "$ref": "#/components/parameters/Csrf"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "204":
           "description": "Completed; no content"
         "400":
@@ -5550,6 +5862,12 @@
             "schema":
               "$ref": "#/components/schemas/StaffInvitationInput"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "201":
           "description": "Created staff account. One-time password for admin to transfer securely; never cache."
           "headers":
@@ -5634,6 +5952,12 @@
             "schema":
               "$ref": "#/components/schemas/ChangePasswordInput"
       "responses":
+        "503":
+          "description": "Temporary database timeout or capacity calculation limit"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorEnvelope"
         "200":
           "description": "Password changed and session rotated"
           "content":

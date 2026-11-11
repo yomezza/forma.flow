@@ -62,26 +62,54 @@ func (s *Service) impacted(ctx context.Context, db postgres.DB, request domain.M
 	if e != nil {
 		return d, nil, e
 	}
+	before := d
 	absence := domain.Clone(request)
 	x, _ := schedule.Minute(request.String("startTime"))
 	y, _ := schedule.Minute(request.String("endTime"))
-	absence["startMinute"] = x
-	absence["endMinute"] = y
-	d.Absences = append(d.Absences, absence)
+	absence["startMinute"], absence["endMinute"] = x, y
+	d.Absences = append(append([]domain.M{}, d.Absences...), absence)
+	var staff domain.M
+	for _, candidate := range d.Specialists {
+		if candidate.String("id") == request.String("specialistId") {
+			staff = candidate
+			break
+		}
+	}
+	if staff == nil {
+		return d, nil, domain.NotFound
+	}
 	affected := []string{}
+	seen := map[string]bool{}
+	checked := map[string]bool{}
 	for _, b := range d.Bookings {
-		if b.String("status") == "completed" {
+		if b.String("status") == "completed" || checked[b.String("id")] {
 			continue
 		}
-		r, _, e := s.Engine.Check(ctx, d, b, true)
+		date := b.String("date")
+		minute, _ := schedule.Minute(b.String("time"))
+		direct := b.String("specialistId") == request.String("specialistId") && date >= request.String("startDate") && date <= request.String("endDate") && (request.String("scope") == "full_days" || minute < y && x < minute+b.Int("durationMinutes")+b.Int("bufferMinutes"))
+		eligibilityChanged := schedule.Eligible(before, staff, b) && !schedule.Eligible(d, staff, b)
+		if !direct && !eligibilityChanged {
+			continue
+		}
+		result, jobs, e := s.Engine.Check(ctx, d, b, true)
 		if e != nil {
 			return d, nil, e
 		}
-		if r.Outcome == assignment.UNKNOWN {
+		if result.Outcome == assignment.UNKNOWN {
 			return d, nil, domain.Fail("CAPACITY_CHECK_LIMIT", 503, "Превышен бюджет расчёта.")
 		}
-		if r.Outcome == assignment.UNSAT {
-			affected = append(affected, b.String("id"))
+		for _, job := range jobs {
+			checked[job.ID] = true
+			if result.Outcome == assignment.UNSAT && !seen[job.ID] {
+				for _, record := range d.Bookings {
+					if record.String("id") == job.ID && record.String("status") != "completed" {
+						seen[job.ID] = true
+						affected = append(affected, job.ID)
+						break
+					}
+				}
+			}
 		}
 	}
 	return d, affected, nil

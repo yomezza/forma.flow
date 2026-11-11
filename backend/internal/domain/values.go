@@ -108,6 +108,9 @@ func (a Actor) Admin() error {
 	if a.AccountID == "" {
 		return AuthRequired
 	}
+	if a.MustChangePassword {
+		return Fail("FIRST_LOGIN_PASSWORD_CHANGE_REQUIRED", 403, "Сначала смените временный пароль.")
+	}
 	if !a.Has("admin") && !a.Has("owner") {
 		return Forbidden
 	}
@@ -116,6 +119,9 @@ func (a Actor) Admin() error {
 func (a Actor) Specialist() error {
 	if a.AccountID == "" {
 		return AuthRequired
+	}
+	if a.MustChangePassword {
+		return Fail("FIRST_LOGIN_PASSWORD_CHANGE_REQUIRED", 403, "Сначала смените временный пароль.")
 	}
 	if !a.Has("specialist") || a.SpecialistID == "" {
 		return Forbidden

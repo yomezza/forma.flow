@@ -1,6 +1,7 @@
 package httptransport
 
 import (
+	"bytes"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -207,7 +208,14 @@ func readBody(w http.ResponseWriter, r *http.Request, schema string) (domain.M, 
 		limit = 32 << 10
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, limit)
-	d := json.NewDecoder(r.Body)
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, domain.Fail("VALIDATION", 400, "Превышен размер запроса.")
+	}
+	if err = uniqueKeys(raw); err != nil {
+		return nil, domain.Fail("VALIDATION", 400, "Некорректный JSON или повторяющиеся поля.")
+	}
+	d := json.NewDecoder(bytes.NewReader(raw))
 	var m map[string]any
 	if e := d.Decode(&m); e != nil {
 		return nil, domain.Fail("VALIDATION", 400, "Некорректный JSON.")
@@ -223,4 +231,52 @@ func readBody(w http.ResponseWriter, r *http.Request, schema string) (domain.M, 
 		return nil, domain.Validation(e.Error())
 	}
 	return domain.M(m), nil
+}
+
+// Reject ambiguous objects before decoding; this applies to nested objects too.
+func uniqueKeys(raw []byte) error {
+	d := json.NewDecoder(bytes.NewReader(raw))
+	var value func(int) error
+	value = func(depth int) error {
+		if depth > 64 {
+			return fmt.Errorf("JSON nesting limit")
+		}
+		token, err := d.Token()
+		if err != nil {
+			return err
+		}
+		delimiter, ok := token.(json.Delim)
+		if !ok {
+			return nil
+		}
+		switch delimiter {
+		case '{':
+			seen := map[string]bool{}
+			for d.More() {
+				key, e := d.Token()
+				if e != nil {
+					return e
+				}
+				name, ok := key.(string)
+				if !ok || seen[name] {
+					return fmt.Errorf("duplicate object key")
+				}
+				seen[name] = true
+				if e = value(depth + 1); e != nil {
+					return e
+				}
+			}
+		case '[':
+			for d.More() {
+				if e := value(depth + 1); e != nil {
+					return e
+				}
+			}
+		default:
+			return fmt.Errorf("unexpected delimiter")
+		}
+		_, err = d.Token()
+		return err
+	}
+	return value(0)
 }

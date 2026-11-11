@@ -57,7 +57,7 @@ func API(store *postgres.Store, log *slog.Logger, cfg config.Config, studio stri
 	engine := schedule.Engine{Clock: clock, MaxNodes: cfg.SolverNodes, MaxComponent: cfg.MaxComponent}
 	s := &Server{Store: store, Log: log}
 	staff := &specialist.Service{Store: store, StudioID: studio, Engine: engine}
-	a := &application{server: s, cfg: cfg, store: store, studio: studio, auth: auth.New(store, cfg.SessionTTL), bookings: &booking.Service{Store: store, StudioID: studio, Engine: engine}, catalog: &catalog.Service{Store: store, StudioID: studio}, clients: &client.Service{Store: store}, schedule: &schedule.Service{Store: store, StudioID: studio, Engine: engine}, staff: staff, rooms: &room.Service{Store: store, StudioID: studio, Staff: staff}, absences: &absence.Service{Store: store, StudioID: studio, Engine: engine}, admin: &admin.Service{Store: store, StudioID: studio, Engine: engine}, rates: map[string]rateEntry{}, hashSlots: make(chan struct{}, 4)}
+	a := &application{server: s, cfg: cfg, store: store, studio: studio, auth: auth.New(store, cfg.SessionTTL), bookings: &booking.Service{Store: store, StudioID: studio, Engine: engine}, catalog: &catalog.Service{Store: store, StudioID: studio}, clients: &client.Service{Store: store}, schedule: &schedule.Service{Store: store, StudioID: studio, TimeZone: cfg.StudioTimeZone, Engine: engine}, staff: staff, rooms: &room.Service{Store: store, StudioID: studio, Staff: staff}, absences: &absence.Service{Store: store, StudioID: studio, Engine: engine}, admin: &admin.Service{Store: store, StudioID: studio, Engine: engine}, rates: map[string]rateEntry{}, hashSlots: make(chan struct{}, 4)}
 	mux := http.NewServeMux()
 	for _, route := range routes {
 		rt := route
