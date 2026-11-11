@@ -1,0 +1,48 @@
+name: backend
+on:
+  push:
+    branches: [main]
+    paths: ['backend/**', '.github/workflows/backend.yml']
+  pull_request:
+    paths: ['backend/**', '.github/workflows/backend.yml']
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        postgres: ['16', '18']
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_USER: forma
+          POSTGRES_PASSWORD: ci-test-only
+          POSTGRES_DB: forma
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd 'pg_isready -U forma -d forma'
+          --health-interval 5s --health-timeout 5s --health-retries 15
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      INTEGRATION_DATABASE_URL: postgres://forma:ci-test-only@localhost:5432/forma?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.4'
+          cache-dependency-path: backend/go.sum
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r tests/requirements.txt
+      - name: PostgreSQL container for restore drill
+        run: echo "PG_TEST_CONTAINER=$(docker ps --filter ancestor=postgres:${{ matrix.postgres }} --format '{{.ID}}')" >> "$GITHUB_ENV"
+      - run: make check
+      - run: make generate && git diff --exit-code -- internal/transport/http/routes.go internal/transport/http/schemas.json
+      - run: make integration
+      - run: make race
+      - run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0 && govulncheck ./...
