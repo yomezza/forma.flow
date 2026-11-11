@@ -11,6 +11,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         postgres: ['16', '18']
     services:
@@ -22,7 +23,7 @@ jobs:
           POSTGRES_DB: forma
         ports: ['5432:5432']
         options: >-
-          --health-cmd 'pg_isready -U forma -d forma'
+          --health-cmd "pg_isready -U forma -d forma"
           --health-interval 5s --health-timeout 5s --health-retries 15
     defaults:
       run:
